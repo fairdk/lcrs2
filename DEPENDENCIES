@@ -1,0 +1,12 @@
+The Computer Recycling Suite master application requires the following:
+
+ - tftpd server available as /usr/sbin/in.tftpd (package name: tftpd-hpa)
+ - or TFTPy 0.4.* (available in Ubuntu repos, package name: python-tftpy)
+ - pydhcplib (apt-get install python-pydhcplib)
+
+This is also required, but it's pretty basic...
+
+ - Python
+ - PyGTK
+ - GTK >= 2.16
+ - GTKBuilder
