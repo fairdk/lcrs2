@@ -30,9 +30,9 @@ import os, sys
 # does not connect to the UI... which is why we name this one "ui_plugins".
 ui_plugins = [
     #(ExamplePlugin, {'disabled': False,}),
-    (FairIDPlugin, {'disabled': False,}),
-    (FairRegisterPlugin, {'disabled': False,}),
-    (FairLoginPlugin, {'disabled': False,}),
+    #(FairIDPlugin, {'disabled': False,}),
+    #(FairRegisterPlugin, {'disabled': False,}),
+    #(FairLoginPlugin, {'disabled': False,}),
 ]
 
 MASTER_PATH = os.path.abspath(__file__)
