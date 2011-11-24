@@ -18,9 +18,9 @@ import ConfigParser
 import os, sys
 
 #from plugins.example import ExamplePlugin
-from plugins.fair.getid import FairIDPlugin
-from plugins.fair.register import FairRegisterPlugin
-from plugins.fair.login import FairLoginPlugin
+#from plugins.fair.getid import FairIDPlugin
+#from plugins.fair.register import FairRegisterPlugin
+#from plugins.fair.login import FairLoginPlugin
 
 #import db.dummy as db
 
