@@ -25,6 +25,8 @@ gtk.gdk.threads_init() #@UndefinedVariable
 import gobject
 import sys
 import os
+import subprocess
+import re
 
 MASTER_PATH = os.path.abspath(__file__)
 MASTER_PATH = os.path.split(MASTER_PATH)[0]
@@ -50,10 +52,19 @@ class GtkMaster():
     """
     def __init__(self):
         
+        # Check if the selected interface is configured correctly...
+        try:
+            ifconfig = subprocess.check_output(["ifconfig", config_master.dhcpInterface])
+            p_ifconfig = re.compile(r"inet\s*addr:\s*%s" % re.escape(config_master.dhcpServerAddress))
+            if not p_ifconfig.search(ifconfig):
+                self.thread_failure_notify("The network interface (%s) is not up running with the correct IP address (%s). Check your settings or make sure that the network is running. Then restart." % (config_master.dhcpInterface, config_master.dhcpServerAddress))
+        except:
+            self.thread_failure_notify("The network interface (%s) that is configured for the master server does not exist. Please check your settings or make sure that the network is running. Then restart." % config_master.dhcpInterface)
+        
         #self.splash_window = splash.SplashWindow(self.start_main_window)     
         self.start_main_window()
         self.dhcpIp4Range = [ config_master.dhcpPrefix + str(ip) for ip in config_master.dhcpIpRange ]
-
+        
         # The IP address has to match the address of the interface
         # used to send the dhcp packets.
         try:
