@@ -304,6 +304,8 @@ class Computer():
                 break
             except json.JSONDecodeError:
                 continue
+            except ValueError:
+                continue
             except socket.timeout:
                 s.close()
                 retries += 1
