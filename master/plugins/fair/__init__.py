@@ -16,3 +16,7 @@
 # along with LCRS.  If not, see <http://www.gnu.org/licenses/>.
 
 CALLBACK_FAILED = "callback failed!"
+
+from getid import FairIDPlugin
+from login import FairLoginPlugin
+from register import FairRegisterPlugin

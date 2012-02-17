@@ -17,7 +17,9 @@
 # You should have received a copy of the GNU General Public License
 # along with LCRS.  If not, see <http://www.gnu.org/licenses/>.
 
-class ExamplePlugin(object):
+from plugins import BasePlugin
+
+class ExamplePlugin(BasePlugin):
     
     name = "Example plugin"
     description = "This is an example plugin"

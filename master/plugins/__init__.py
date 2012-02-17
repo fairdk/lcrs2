@@ -19,3 +19,6 @@
 
 class CallbackFailed(Exception):
     pass
+
+class BasePlugin():
+    pass

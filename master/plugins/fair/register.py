@@ -26,7 +26,9 @@ import shlex
 URL_REGISTER = "/materials/barcode/"
 URL_REGISTER_WEBSERVICE = "/materials/coresu/register/webservice/"
 
-class FairRegisterPlugin():
+from plugins import BasePlugin
+
+class FairRegisterPlugin(BasePlugin):
 
     name = "FAIR computer registration"
     description = ("Posts data to fairdanmark.dk and uses xdg-open to load a browser with a window to verify the computer.")

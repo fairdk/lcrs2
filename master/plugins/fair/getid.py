@@ -18,11 +18,11 @@
 import httplib
 import gtk
 
-from plugins import CallbackFailed
+from plugins import CallbackFailed, BasePlugin
 
 import settings
 
-class FairIDPlugin():
+class FairIDPlugin(BasePlugin):
     
     name = "FAIR ID plugin"
     description = "Gets IDs from the database and returns their full title to be displayed in the UI."

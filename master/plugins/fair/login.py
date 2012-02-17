@@ -20,7 +20,9 @@ import gtk
 
 import settings
 
-class FairLoginPlugin():
+from plugins import BasePlugin
+
+class FairLoginPlugin(BasePlugin):
 
     name = "FAIR Login"
     description = ("Sends the scanned result in raw JSON to the FAIR server where"

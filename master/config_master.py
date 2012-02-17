@@ -56,6 +56,23 @@ if not config.has_section('network'):
 if not config.has_section('tftp'):
     config.add_section('tftp')
 
+if not config.has_section('plugins'):
+    config.add_section('plugins')
+
+import plugins
+import inspect, pkgutil
+for (__, module_name, __) in list(pkgutil.iter_modules(plugins.__path__)):
+    
+    module = __import__("%s.%s" % (plugins.__name__, module_name)).__dict__[module_name]
+    for cls in dir(module):
+        cls=getattr(module,cls)
+        if (inspect.isclass(cls)
+            and cls.__name__ != plugins.BasePlugin.__name__ #@UndefinedVariable
+            and issubclass(cls, plugins.BasePlugin)):
+            print('found in {f}: {c}'.format(f=module.__name__,c=cls))
+            ui_plugins.append((cls, {'disabled': False}))
+    
+
 # Set config variables
 dhcpServerAddress   = config.get('network', 'server-ip')
 dhcpInterface       = config.get('network', 'server-iface')
