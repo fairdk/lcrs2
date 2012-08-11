@@ -53,11 +53,14 @@ class GtkMaster():
     def __init__(self):
         
         # Check if the selected interface is configured correctly...
+        network_up = False
         try:
             ifconfig = subprocess.check_output(["ifconfig", config_master.dhcpInterface])
             p_ifconfig = re.compile(r"inet\s*addr:\s*%s" % re.escape(config_master.dhcpServerAddress))
             if not p_ifconfig.search(ifconfig):
                 self.thread_failure_notify("The network interface (%s) is not up running with the correct IP address (%s). Check your settings or make sure that the network is running. Then restart." % (config_master.dhcpInterface, config_master.dhcpServerAddress))
+            else:
+                network_up = True
         except:
             self.thread_failure_notify("The network interface (%s) that is configured for the master server does not exist. Please check your settings or make sure that the network is running. Then restart." % config_master.dhcpInterface)
         
@@ -67,14 +70,17 @@ class GtkMaster():
         
         # The IP address has to match the address of the interface
         # used to send the dhcp packets.
-        try:
-            from dhcp import DHCPManager
-            self.dhcpmgr = DHCPManager (self.get_dhcp_address,
-                                        config_master.dhcpServerAddress, config_master.dhcpInterface)
-        except ImportError:
-            self.thread_failure_notify("Could not start DHCP server. You do not have pydhcplib install. Try to run sudo apt-get install python-pydhcplib.")            
-        except:
-            self.thread_failure_notify("Could not start DHCP server. Please check that you are running the program as root and that no other instances of a DHCP server is running (e.g. another instance of LCRS).")            
+        if network_up:
+            
+            try:
+                from dhcp import DHCPManager
+                self.dhcpmgr = DHCPManager (self.get_dhcp_address,
+                                            config_master.dhcpServerAddress, config_master.dhcpInterface)
+            except ImportError:
+                self.thread_failure_notify("Could not start DHCP server. You do not have pydhcplib install. Try to run sudo apt-get install python-pydhcplib.")            
+            except:
+                self.thread_failure_notify("Could not start DHCP server. Please check that you are running the program as root and that no other instances of a DHCP server is running (e.g. another instance of LCRS).")            
+
         def tftpyListen():
             import tftpy #@UnresolvedImport
             try:
@@ -110,9 +116,10 @@ class GtkMaster():
                 if ret != 0:
                     self.thread_failure_notify("Could not start TFTP server. Are you running the program with root privileges? Maybe you should do apt-get install tftpd-hpa")
 
-        self.tftp_thread = threading.Thread (target = tftpyListen if config_master.tftpTftpy else tftpdListen)
-        self.tftp_thread.setDaemon(True)
-        self.tftp_thread.start()
+        if network_up:
+            self.tftp_thread = threading.Thread (target = tftpyListen if config_master.tftpTftpy else tftpdListen)
+            self.tftp_thread.setDaemon(True)
+            self.tftp_thread.start()
     
     def thread_failure_notify(self, msg):
 
