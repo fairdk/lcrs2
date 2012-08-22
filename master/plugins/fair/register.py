@@ -17,7 +17,6 @@
 
 import httplib, urllib, hashlib
 import subprocess
-import gtk
 import settings
 import os
 import simplejson as json
@@ -64,7 +63,7 @@ class FairRegisterPlugin(BasePlugin):
                                    })
         headers = {"Content-type": "application/x-www-form-urlencoded",
                    "Accept": "text/plain"}
-        conn = httplib.HTTPConnection(settings.FAIR_SERVER)
+        conn = httplib.HTTPSConnection(settings.FAIR_SERVER)
         conn.request("POST", URL_REGISTER_WEBSERVICE, params, headers)
         response = conn.getresponse()
         data = response.read()
@@ -80,13 +79,13 @@ class FairRegisterPlugin(BasePlugin):
         grouppage.update_row(computer)
         self.on_auto_submit(computer)
         
-        url = "http://%s%s%s" % (settings.FAIR_SERVER, URL_REGISTER, computer.id)
+        url = "https://%s%s%s" % (settings.FAIR_SERVER, URL_REGISTER, computer.id)
         username = os.getenv("SUDO_USER")
         
         if username:
-            process = subprocess.Popen(shlex.split("su %s -c \"xdg-open %s\"" % (username, url)))
+            subprocess.Popen(shlex.split("su %s -c \"xdg-open %s\"" % (username, url)))
         else:
-            process = subprocess.Popen(shlex.split("xdg-open %s" % url))
+            subprocess.Popen(shlex.split("xdg-open %s" % url))
         
         
         def on_close(dialog, *args):

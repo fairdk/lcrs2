@@ -83,7 +83,7 @@ class FairLoginPlugin(BasePlugin):
             params = urllib.urlencode({'u': username, 'p': password, 'c': checksum})
             headers = {"Content-type": "application/x-www-form-urlencoded",
                        "Accept": "text/plain"}
-            conn = httplib.HTTPConnection(settings.FAIR_SERVER)
+            conn = httplib.HTTPSConnection(settings.FAIR_SERVER)
             conn.request("POST", "/materials/coresu/login/", params, headers)
             r1 = conn.getresponse()
             if r1.status == 200:

@@ -331,7 +331,7 @@ class Computer():
             state, progress = self.__send_to_slave(request)
             return state, progress
         except ConnectionException:
-            return (protocol.FAIL, self.__progress)
+            return (protocol.FAIL, "Could not connect")
 
     def update_state(self):
         __, progress = self.slave_state()
@@ -405,6 +405,7 @@ class Computer():
                     logger.error("Badblocks detected! Output was: %s" % str(data))
                     self.hw_info["Hard drives"][dev_name]["Badblocks"] = True
                     raise ResponseFailException("Badblocks detected!")
+                # TODO: Make a better solution for detecting finished jobs??
                 if state == protocol.IDLE:
                     self.__progress = 1.0
                     self.hw_info["Hard drives"][dev_name]["Badblocks"] = False
@@ -425,11 +426,13 @@ class Computer():
                 raise ResponseFailException("Failed getting WIPE_OUTPUT: %s" % str(data))
             if state == protocol.IDLE:
                 self.__progress = 1.0
+                logger.info("Finished: Computer ID %d" % self.id)
                 break
             progress = data
             callback_progress(self, progress) if callback_progress else ()
             time.sleep(2)
         
+        logger.info("Fetching dump for computer ID %d" % self.id)
         self.hw_info["Hard drives"][dev_name]["Dump after"] = self.__wipe_dump(dev_name)
     
     def __wipe_dump(self, dev_name):
@@ -715,6 +718,5 @@ class Computer():
         return hw_info
 
     def whatever(self ,stdout, stderr, hw_info):
+        # TODO: Why is this function here?
         return hw_info
-    
-    
