@@ -388,8 +388,9 @@ class Computer():
             return (protocol.DISCONNECTED, "Could not connect")
 
     def update_state(self):
-        __, progress = self.slave_state()
-        self.__progress = progress
+        state, progress = self.slave_state()
+        if not state == protocol.DISCONNECTED:
+            self.__progress = progress
     
     def wipe(self, method, badblocks=False,
              callback_finished=None, callback_failed=None,
