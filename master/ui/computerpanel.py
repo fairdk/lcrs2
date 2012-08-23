@@ -89,7 +89,10 @@ class ComputerPanel():
         return self.mainContainer
 
     def set_headline(self):
-        headline = "Details: %s" % str(self.computer.id)
+        if self.computer.id:
+            headline = "Details: %s" % str(self.computer.id)
+        else:
+            headline = "Details: No ID"
         self.glade.get_object('labelComputerPanel').set_text(headline)
 
     def set_hardware(self):

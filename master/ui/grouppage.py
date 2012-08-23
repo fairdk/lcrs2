@@ -22,7 +22,7 @@ import time
 from computerpanel import ComputerPanel
 from reportdialog import ReportDialog
 from getid import GetID
-from plugins import CallbackFailed
+from master.plugins import CallbackFailed
 
 COLUMN_LENGTH = 10
 (COLUMN_STATUS_ICON, COLUMN_ICON_SIZE, COLUMN_ID, COLUMN_ID_FONT,
@@ -282,9 +282,7 @@ class GroupPage():
             time.sleep(2)
     
     def show_computer(self, computer, remove_busy=True):
-        from computer import SCANNING
-
-        if computer.is_active() and computer.state() == SCANNING:
+        if computer.is_active() and computer.is_scanning():
             self.show_busy(computer)
             return
         
@@ -337,7 +335,7 @@ class GroupPage():
         row = [None for _ in range(COLUMN_LENGTH)]
         row[COLUMN_STATUS_ICON] = connection_icon(computer.is_connected())
         row[COLUMN_ICON_SIZE] = 4.0
-        row[COLUMN_ID] = str(computer.id)
+        row[COLUMN_ID] = str(computer.id) if computer.id else "No ID"
         row[COLUMN_ID_FONT] = "normal 18"
         row[COLUMN_NETWORK] = "IP: %s\nMAC: %s" % (str(computer.ipAddress), str(computer.macAddress))
         row[COLUMN_PROGRESS] = computer.progress() * 100
@@ -431,7 +429,7 @@ class GroupPage():
         if it and self.liststore.iter_is_valid(it):
             is_connected = computer.is_connected()
             self.liststore.set_value(it, COLUMN_STATUS_ICON, connection_icon(is_connected))
-            self.liststore.set_value(it, COLUMN_ID, str(computer.id))
+            self.liststore.set_value(it, COLUMN_ID, str(computer.id) if computer.id else "No ID")
             self.liststore.set_value(it, COLUMN_PROGRESS, computer.progress() * 100)
             self.liststore.set_value(it, COLUMN_ACTIVITY, computer.activity())
             self.liststore.set_value(it, COLUMN_WIPED, wiped_icon(computer.wiped))

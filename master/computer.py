@@ -55,9 +55,69 @@ class ResponseFailException(Exception):
     def __str__(self):
         return repr(self.parameter)
 
-# States of the master-side representation of the slave
-NOT_CONNECTED, CONNECTED, SCANNING, SCANNED, WIPING, WIPED, FAIL = range(7)
 
+# Computer states in master's end of the line...    
+# Logic inference on state is treated here in order to deduct
+# meaningful treatment elsewhere and produce correct output in the UI. 
+class State:
+    (NOT_CONNECTED, 
+     CONNECTED, 
+     INITIALIZED,
+     SCANNING, 
+     SCAN_FAILED,
+     SCANNED,
+     WIPING, 
+     WIPE_FAILED,
+     WIPED, 
+     SHUTDOWN_REQUESTED,
+     SHUTDOWN_DETECTED) = range(11)
+    
+    def __init__(self):
+        self.__state = State.NOT_CONNECTED
+        self.__connected = False
+        # Current activity info
+        self.__info = "Not connected"
+        # Remember previous activities so we can switch back to last
+        # update if computer reconnects
+        self.__wipe_info = ""
+        self.__scan_info = ""
+    
+    def update(self, state, info=None):
+        if state == State.CONNECTED:
+            self.__connected = True
+            if self.__state < State.INITIALIZED or self.__state > State.SHUTDOWN_REQUESTED:
+                self.__state = State.INITIALIZED
+                self.__info = "Ready"
+            return
+        if state == State.NOT_CONNECTED:
+            self.__info = "Not connected"
+            self.__connected = False
+            return
+        
+        self.__state = state
+        if not info is None:
+            self.__info = info
+            if self.state in [State.SCANNING, State.SCANNED, State.SCAN_FAILED]:
+                self.__scan_info = info
+            if self.state in [State.WIPING, State.WIPED, State.WIPE_FAILED]:
+                self.__wipe_info = info
+    
+    @property
+    def is_connected(self):
+        return self.__connected
+    
+    @property
+    def is_busy(self):
+        return self.__state in [State.SCANNING, State.WIPING]
+    
+    @property
+    def info(self):
+        return self.__info
+    
+    @property
+    def state(self):
+        return self.__state
+    
 # Shell commands for the first iteration and functions for analyzing data
 SCAN_ITERATION_1 = {
     "/usr/sbin/lspci": "analyze_lspci_data",
@@ -95,25 +155,24 @@ BADBLOCKS = "badblocks -c 1 -s /dev/%(dev)s"
 class Computer():
     """
     """
-
+    
     def __init__(self, computer_id, ipAddress, macAddress):
 
-        self.id         = computer_id
-        self.ipAddress  = ipAddress
+        self.id = computer_id or 0
+        self.ipAddress = ipAddress
         self.macAddress = macAddress
+        
+        self.state = State()
 
         # Activity information
-        self.__is_active = False
-        self.__is_connected = False
-        self.__state = NOT_CONNECTED
-        self.__activity = "Not connected"
+        self.state.update(State.NOT_CONNECTED, "Initializing connection...")
         
         self.__progress = 0.0 # 0.0 - 1.0 indicating progress of current operation
         
         # Info from hardware scan
         self.hw_info = {}
         self.scanned = False # If false, we should not allow wipe operation
-
+        
         # Information from wipe job
         self.wiped = False
         self.wipe_started_on = None
@@ -129,10 +188,9 @@ class Computer():
              callback_failed=None):
         """Spawn scan process and receive call backs"""
         self.scanned = False
-        if self.__is_active:
+        if self.state.is_busy:
             return
-        self.__is_active = True
-        self.__state = SCANNING
+        self.state.update(State.SCANNING, "Scanning...")
         t = threading.Thread(target=self.__scan_thread, args=(callback_progress, 
                                                               callback_finished, 
                                                               callback_failed))
@@ -153,12 +211,12 @@ class Computer():
         
         def callback_progress1(progress, state):
             self.__progress = progress / scan1_share
-            self.__activity = protocol.translate_state(state)
+            self.state.update(State.SCANNING, protocol.translate_state(state))
             callback_progress(self, progress) if callback_progress else ()
         
         def callback_progress2(progress, state):
             self.__progress = progress / scan2_share
-            self.__activity = protocol.translate_state(state)
+            self.state.update(State.SCANNING, protocol.translate_state(state))
             callback_progress(self, progress) if callback_progress else ()
 
         # Send the scan1 list of commands to execute
@@ -174,8 +232,7 @@ class Computer():
             __, data = self.__send_to_slave(request)
             self.__analyze_scan_data(data)
         except ConnectionException, msg:
-            self.__activity = "Scan failed: %s" % (msg)
-            self.__is_active = False
+            self.state.update(State.SCAN_FAILED, "Scan failed: %s" % (msg))
             callback_failed(self) if callback_failed else ()
             return
             
@@ -197,10 +254,11 @@ class Computer():
         self.__analyze_scan_data(data)
 
         self.__progress = 1.0
-        self.__activity = "Scanning finished" if not state == protocol.FAIL else "Scanning failed"
-        self.__is_active = False
-        self.__state = SCANNED
-        self.scanned = True
+        if not state == protocol.FAIL:
+            self.state.update(State.SCANNED, "Scanning finished")
+            self.scanned = True
+        else:
+            self.state.update(State.SCAN_FAILED, "Scanning failed")
         callback_finished(self) if callback_finished else ()
     
     def __request_and_monitor(self, scan_commands, callback_progress=None, 
@@ -213,20 +271,16 @@ class Computer():
         if status == protocol.FAIL:
             callback_failed(self) if callback_failed else ()
             logger.warning("SCAN failed. Reason: %s" % str(data))
-            self.__state = FAIL
-            self.__activity = str(data)
-            self.__is_active = False
+            self.state.update(State.SCAN_FAILED, "Scan failed: %s" % str(data))
             return False
         
         # Start monitoring scan 1
-        self.__activity = "Scanning"
+        self.state.update(State.SCANNING, "Scanning...")
         while not self.scanned:
             (state, progress) = self.slave_state()
             callback_progress(progress, state) if callback_progress else ()
             if state == protocol.FAIL:
-                self.__activity = "Scan failed"
-                self.__state = FAIL
-                self.__is_active = False
+                self.state.update(State.SCAN_FAILED, "Scan failed during execution")
                 logger.warning("SCAN failed during execution.")
                 callback_failed(self) if callback_failed else ()
                 return False
@@ -270,28 +324,23 @@ class Computer():
                 s.connect( (self.ipAddress, slave_settings.LISTEN_PORT) )
                 s.settimeout (10.0)
                 s.send(request)
-                if not self.__is_connected:
-                    self.__activity = "Connected"
-                    self.__is_connected = True
+                self.state.update(State.CONNECTED)
                 break
             except socket.timeout:
                 time.sleep(1)
-                self.__is_connected = False
             except socket.error:
                 s.close()
-                self.__activity = "Not connected"
-                self.__is_connected = False
+                self.state.update(State.NOT_CONNECTED, "Could not connect")
                 logger.error("Could not connect")
                 raise ConnectionException("Could not connect")
             except:
                 s.close()
                 e = sys.exc_info()[1]
-                self.__activity = "Error connecting."
+                self.state.update(State.NOT_CONNECTED, "Error connecting.")
                 logger.error(e)
-                self.__is_connected = False
                 raise ConnectionException("Could not connect")
         
-        if not self.__is_connected:
+        if not self.state.is_connected:
             s.close()
             raise ConnectionException("Timeout connecting")
 
@@ -299,7 +348,7 @@ class Computer():
         while True:
             try:
                 reply = reply + s.recv (slave_settings.MAX_PACKET_SIZE)
-                self.__is_connected = True
+                self.state.update(State.CONNECTED)
                 reply = json.loads(reply)
                 break
             except json.JSONDecodeError:
@@ -311,12 +360,11 @@ class Computer():
                 retries += 1
                 if retries > 5: raise ConnectionException("Timeout while receiving reply")
                 time.sleep(10)
-                self.__is_connected = False
+                self.state.update(State.NOT_CONNECTED, "Connection timeout")
                 continue
             except socket.error:
                 s.close()
-                self.__activity = "Not connected"
-                self.__is_connected = False
+                self.state.update(State.NOT_CONNECTED, "Connection failure")
                 logger.error("Could not connect after sending request")
                 raise ConnectionException("Could not connect")
             
@@ -346,18 +394,16 @@ class Computer():
         
         logger.info("Now wiping hard drives on IP: %s" % str(self.ipAddress))
         
-        self.__is_active = True
         self.wiped = False
-        self.__state = WIPING
+        self.state.update(State.WIPING, "Starting wipe...")
         self.wipe_method = method
         self.drives = self.hw_info.get('Hard drives', {}).keys()        
         self.wiped = False
         self.wipe_started_on = datetime.now()
 
         if not self.drives:
-            self.__activity = "No hard drives detected!"
+            self.state.update(State.WIPE_FAILED, "No hard drives detected")
             self.__progress = 1.0
-            self.__is_active = False
             callback_failed(self) if callback_failed else ()
             return
         
@@ -365,21 +411,18 @@ class Computer():
         wipe_cnt = 0
         for dev_name in self.drives:
             wipe_cnt = wipe_cnt + 1
-            self.__activity = "Wiping drive %d of %d" % (wipe_cnt, len(self.drives))
+            self.state.update(State.WIPING, "Wiping drive %d of %d" % (wipe_cnt, len(self.drives)))
             callback_progress(self, self.__progress) if callback_progress else ()
             try:
                 self.__wipe_drive(dev_name, method, badblocks, callback_progress)
             except ResponseFailException, msg:
-                self.__activity = "Wipe failed on drive %d: %s" % (wipe_cnt, str(msg))
-                self.__is_active = False
+                self.state.update(State.WIPE_FAILED, "Wipe failed on drive %d: %s" % (wipe_cnt, str(msg)))
                 callback_failed(self) if callback_failed else ()
                 return
 
-        self.__activity = "All drives wiped!"
         self.__progress = 1.0
-        self.__is_active = False
         self.wiped = True
-        self.__state = WIPED
+        self.state.update(State.WIPED, "All drives wiped!")
         self.wipe_finished_on = datetime.now()
         callback_finished(self) if callback_finished else ()
 
@@ -472,58 +515,26 @@ class Computer():
         logger.error("Could not retrieve HDD dump. Timed out!")
         raise ResponseFailException("Could not retrieve HDD dump. Timed out! Maybe the hard drive has bad sectors?")
 
-    def wipe_update(self, progress):
-        """Callback from WipeProcess"""
-        self.__activity = "Wiping drive %d of %d" % (self.current_drive+1, len(self.drives))
-        self.__progress = progress
-        self.wipe_duration = datetime.now() - self.wipe_started_on
-
-    def wipe_finished(self, before_dump="", after_dump=""):
-        """Callback from WipeProcess"""
-        self.__progress = 0.0
-        wiped_drive = self.drives[self.current_drive]
-        self.hw_info['FixedHardDrive'][wiped_drive]['wiped'] = True
-        self.hw_info['FixedHardDrive'][wiped_drive]['wipe_method'] = "wipe standard"
-        self.hw_info['FixedHardDrive'][wiped_drive]['passes'] = 1
-        self.hw_info['FixedHardDrive'][wiped_drive]['wipe_before'] = before_dump
-        self.hw_info['FixedHardDrive'][wiped_drive]['wipe_after'] = after_dump
-        if self.current_drive+1 < len(self.drives):
-            self.current_drive = self.current_drive + 1
-            self.wipe_current()
-        else:
-            self.wiped = True
-            self.__is_active = False
-            self.__progress = 1.0
-            self.wipe_finished_on = datetime.now()
-            self.__activity = "All drives wiped"
-            for callback in self.wipe_finished_callbacks:
-                callback(self)
-
-    def wipe_failed(self, reason="Wipe failed"):
-        self.wiped = False
-        self.__is_active = False
-        self.__activity = reason
-        self.wipe_duration = None
-        self.wipe_finished = None
-        for callback in self.wipe_failed_callbacks:
-            callback(self)
-
     def shutdown(self):
         """Asks the slave to perform a shutdown"""
-        self.__activity = "Shutdown requested"
-        (state, data) = self.__send_to_slave((protocol.SHELL_EXEC, "halt")) #@UnusedVariable
+        try:
+            self.state.update(State.SHUTDOWN_REQUESTED, "Shutdown requested")
+            (state, data) = self.__send_to_slave((protocol.SHELL_EXEC, "halt")) #@UnusedVariable
+        except ConnectionException, __:
+            pass
+        self.state.update(State.SHUTDOWN_DETECTED, "Shutdown detected")
         
     def is_connected(self):
-        return self.__is_connected
+        return self.state.is_connected
 
     def is_active(self):
-        return self.__is_active
-
-    def activity(self):
-        return self.__activity
+        return self.state.is_busy
     
-    def state(self):
-        return self.__state
+    def is_scanning(self):
+        return self.state.state == State.SCANNING
+    
+    def activity(self):
+        return self.state.info
     
     def progress(self):
         if self.__progress < 0:
