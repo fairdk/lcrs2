@@ -328,7 +328,7 @@ class Computer():
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 s.settimeout (2.0)
                 s.connect( (self.ipAddress, slave_settings.LISTEN_PORT) )
-                s.settimeout (10.0)
+                s.settimeout (1.0)
                 s.send(request)
                 self.state.update(State.CONNECTED)
                 break
@@ -461,10 +461,10 @@ class Computer():
                     break
                 if state == protocol.BUSY:
                     progress = data
-                    callback_progress(self, progress) if callback_progress else ()
-                    time.sleep(2)
                 if state == protocol.DISCONNECTED:
                     self.state.update(State.NOT_CONNECTED, "Not connected")
+                callback_progress(self, progress) if callback_progress else ()
+                time.sleep(2)
 
         wipe_command = WIPE_METHODS[method] % {'dev': dev_name,}
         request = (protocol.WIPE, wipe_command)
@@ -482,10 +482,10 @@ class Computer():
                 break
             if state == protocol.BUSY:
                 progress = data
-                callback_progress(self, progress) if callback_progress else ()
-                time.sleep(2)
             if state == protocol.DISCONNECTED:
                 self.state.update(State.NOT_CONNECTED, "Not connected")
+            callback_progress(self, progress) if callback_progress else ()
+            time.sleep(2)
         
         logger.info("Fetching dump for computer ID %d" % self.id)
         self.hw_info["Hard drives"][dev_name]["Dump after"] = self.__wipe_dump(dev_name)
