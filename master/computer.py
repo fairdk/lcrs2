@@ -88,6 +88,12 @@ class State:
             if self.__state < State.INITIALIZED or self.__state > State.SHUTDOWN_REQUESTED:
                 self.__state = State.INITIALIZED
                 self.__info = "Ready"
+            elif self.__state < State.WIPING:
+                self.__info = self.__scan_info
+            elif self.__state < State.SHUTDOWN_REQUESTED:
+                self.__info = self.__wipe_info
+            else:
+                self.__info = "Connected"
             return
         if state == State.NOT_CONNECTED:
             self.__info = "Not connected"
@@ -379,7 +385,7 @@ class Computer():
             state, progress = self.__send_to_slave(request)
             return state, progress
         except ConnectionException:
-            return (protocol.FAIL, "Could not connect")
+            return (protocol.DISCONNECTED, "Could not connect")
 
     def update_state(self):
         __, progress = self.slave_state()
@@ -453,9 +459,12 @@ class Computer():
                     self.__progress = 1.0
                     self.hw_info["Hard drives"][dev_name]["Badblocks"] = False
                     break
-                progress = data
-                callback_progress(self, progress) if callback_progress else ()
-                time.sleep(2)
+                if state == protocol.BUSY:
+                    progress = data
+                    callback_progress(self, progress) if callback_progress else ()
+                    time.sleep(2)
+                if state == protocol.DISCONNECTED:
+                    self.state.update(State.NOT_CONNECTED, "Not connected")
 
         wipe_command = WIPE_METHODS[method] % {'dev': dev_name,}
         request = (protocol.WIPE, wipe_command)
@@ -471,9 +480,12 @@ class Computer():
                 self.__progress = 1.0
                 logger.info("Finished: Computer ID %d" % self.id)
                 break
-            progress = data
-            callback_progress(self, progress) if callback_progress else ()
-            time.sleep(2)
+            if state == protocol.BUSY:
+                progress = data
+                callback_progress(self, progress) if callback_progress else ()
+                time.sleep(2)
+            if state == protocol.DISCONNECTED:
+                self.state.update(State.NOT_CONNECTED, "Not connected")
         
         logger.info("Fetching dump for computer ID %d" % self.id)
         self.hw_info["Hard drives"][dev_name]["Dump after"] = self.__wipe_dump(dev_name)
