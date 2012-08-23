@@ -20,7 +20,8 @@
 # States of the slave application
 ( IDLE,
   FAIL,
-  BUSY ) = range(3)
+  BUSY,
+  DISCONNECTED ) = range(4)
 
 def translate_state(state):
     global IDLE, FAIL, BUSY
@@ -30,6 +31,8 @@ def translate_state(state):
         return "fail"
     if state == BUSY:
         return "busy"
+    if state == DISCONNECTED:
+        return "disconnected"
 
 # Request IDs
 (
