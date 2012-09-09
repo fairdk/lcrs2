@@ -81,8 +81,9 @@ class State:
         # update if computer reconnects
         self.__wipe_info = ""
         self.__scan_info = ""
+        self.__progress = 0.0
     
-    def update(self, state, info=None):
+    def update(self, state, info=None, progress=None):
         if state == State.CONNECTED:
             self.__connected = True
             if self.__state < State.INITIALIZED or self.__state > State.SHUTDOWN_REQUESTED:
@@ -100,6 +101,9 @@ class State:
             self.__connected = False
             return
         
+        if not progress is None:
+            self.update_progress(progress)
+        
         self.__state = state
         if not info is None:
             self.__info = info
@@ -107,6 +111,10 @@ class State:
                 self.__scan_info = info
             if self.state in [State.WIPING, State.WIPED, State.WIPE_FAILED]:
                 self.__wipe_info = info
+    
+    def update_progress(self, progress):
+        if self.state in [State.SCANNING, State.WIPING]:
+            self.__progress = progress
     
     @property
     def is_connected(self):
@@ -124,6 +132,10 @@ class State:
     def state(self):
         return self.__state
     
+    @property
+    def progress(self):
+        return self.__progress
+
 # Shell commands for the first iteration and functions for analyzing data
 SCAN_ITERATION_1 = {
     "/usr/sbin/lspci": "analyze_lspci_data",
@@ -173,8 +185,6 @@ class Computer():
         # Activity information
         self.state.update(State.NOT_CONNECTED, "Initializing connection...")
         
-        self.__progress = 0.0 # 0.0 - 1.0 indicating progress of current operation
-        
         # Info from hardware scan
         self.hw_info = {}
         self.scanned = False # If false, we should not allow wipe operation
@@ -216,13 +226,13 @@ class Computer():
         scan2_share = len(SCAN_ITERATION_2.keys()) / float(total_amount_of_commands)
         
         def callback_progress1(progress, state):
-            self.__progress = progress / scan1_share
-            self.state.update(State.SCANNING, protocol.translate_state(state))
+            self.state.update(State.SCANNING, info=protocol.translate_state(state),
+                              progress=progress/scan1_share)
             callback_progress(self, progress) if callback_progress else ()
         
         def callback_progress2(progress, state):
-            self.__progress = progress / scan2_share
-            self.state.update(State.SCANNING, protocol.translate_state(state))
+            self.state.update(State.SCANNING, info=protocol.translate_state(state),
+                              progress=progress/scan2_share)
             callback_progress(self, progress) if callback_progress else ()
 
         # Send the scan1 list of commands to execute
@@ -259,12 +269,11 @@ class Computer():
         state, data = self.__send_to_slave(request)
         self.__analyze_scan_data(data)
 
-        self.__progress = 1.0
         if not state == protocol.FAIL:
-            self.state.update(State.SCANNED, "Scanning finished")
+            self.state.update(State.SCANNED, info="Scanning finished", progress=1.0)
             self.scanned = True
         else:
-            self.state.update(State.SCAN_FAILED, "Scanning failed")
+            self.state.update(State.SCAN_FAILED, info="Scanning failed", progress=1.0)
         callback_finished(self) if callback_finished else ()
     
     def __request_and_monitor(self, scan_commands, callback_progress=None, 
@@ -390,7 +399,7 @@ class Computer():
     def update_state(self):
         state, progress = self.slave_state()
         if not state == protocol.DISCONNECTED:
-            self.__progress = progress
+            self.state.update_progress(progress)
     
     def wipe(self, method, badblocks=False,
              callback_finished=None, callback_failed=None,
@@ -409,39 +418,36 @@ class Computer():
         self.wipe_started_on = datetime.now()
 
         if not self.drives:
-            self.state.update(State.WIPE_FAILED, "No hard drives detected")
-            self.__progress = 1.0
+            self.state.update(State.WIPE_FAILED, info="No hard drives detected", progress=1.0)
             callback_failed(self) if callback_failed else ()
             return
         
-        callback_progress(self, self.__progress) if callback_progress else ()
+        callback_progress(self, self.progress()) if callback_progress else ()
         wipe_cnt = 0
         for dev_name in self.drives:
             wipe_cnt = wipe_cnt + 1
-            self.state.update(State.WIPING, "Wiping drive %d of %d" % (wipe_cnt, len(self.drives)))
-            callback_progress(self, self.__progress) if callback_progress else ()
+            self.state.update(State.WIPING, "Wiping drive %d of %d" % (wipe_cnt, len(self.drives)), progress=0.0)
+            callback_progress(self, self.progress()) if callback_progress else ()
             try:
                 self.__wipe_drive(dev_name, method, badblocks, callback_progress)
             except ResponseFailException, msg:
-                self.state.update(State.WIPE_FAILED, "Wipe failed on drive %d: %s" % (wipe_cnt, str(msg)))
+                self.state.update(State.WIPE_FAILED, "Wipe failed on drive %d: %s" % (wipe_cnt, str(msg)), progress=0.0)
                 callback_failed(self) if callback_failed else ()
                 return
 
-        self.__progress = 1.0
         self.wiped = True
-        self.state.update(State.WIPED, "All drives wiped!")
+        self.state.update(State.WIPED, info="All drives wiped!", progress=1.0)
         self.wipe_finished_on = datetime.now()
         callback_finished(self) if callback_finished else ()
 
     def __wipe_drive(self, dev_name, method, badblocks=False, callback_progress=None):
         
-        self.__progress = 0.0
         self.hw_info["Hard drives"][dev_name]["Dump before"] = self.__wipe_dump(dev_name)
         
         #TODO: Standardise these values all over the project!
         self.hw_info["Hard drives"][dev_name]["Wipe method"] = "wipe standard"
         self.hw_info["Hard drives"][dev_name]["Passes"] = 1
-        callback_progress(self, self.__progress) if callback_progress else ()
+        callback_progress(self, self.progress()) if callback_progress else ()
 
         if badblocks:
             badblocks_command = BADBLOCKS % {'dev': dev_name,}
@@ -457,7 +463,7 @@ class Computer():
                     raise ResponseFailException("Badblocks detected!")
                 # TODO: Make a better solution for detecting finished jobs??
                 if state == protocol.IDLE:
-                    self.__progress = 1.0
+                    self.state.update_progress(1.0)
                     self.hw_info["Hard drives"][dev_name]["Badblocks"] = False
                     break
                 if state == protocol.BUSY:
@@ -478,7 +484,7 @@ class Computer():
                 logger.error("Something went wrong when wiping: %s" % str(data))
                 raise ResponseFailException("Failed getting WIPE_OUTPUT: %s" % str(data))
             if state == protocol.IDLE:
-                self.__progress = 1.0
+                self.state.update_progress(1.0)
                 logger.info("Finished: Computer ID %d" % self.id)
                 break
             if state == protocol.BUSY:
@@ -550,13 +556,7 @@ class Computer():
         return self.state.info
     
     def progress(self):
-        if self.__progress < 0:
-            return 0.0
-        if self.__progress > 1:
-            return 1.0
-        return self.__progress
-
-    
+        return self.state.progress
     
     def analyze_cpu_data(self ,stdout, stderr, hw_info):
 

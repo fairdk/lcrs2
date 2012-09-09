@@ -22,6 +22,8 @@ from datetime import datetime
 
 from ui.grouppage import GroupPage
 import config_master
+import logging
+logger = logging.getLogger('lcrs')
 
 # should be replaced with something from logging module
 LOG_ERR, LOG_WARNING, LOG_INFO = range(3)
@@ -58,7 +60,7 @@ class MainWindow (object):
                 p = plugin_class(self)
                 self.plugins.append(p)
                 p.activate()
-                print "activating %s" % plugin_class.name
+                logger.debug("activating %s" % plugin_class.name)
 
     def plugin_subscribe(self, hook_id, callback):
         old_list = self.plugin_hooks.get(hook_id, [])

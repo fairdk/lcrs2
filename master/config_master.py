@@ -35,6 +35,11 @@ ui_plugins = [
     #(FairLoginPlugin, {'disabled': False,}),
 ]
 
+DEBUG = False
+
+import logging
+logger = logging.getLogger('lcrs')
+
 MASTER_PATH = os.path.abspath(__file__)
 MASTER_PATH = os.path.split(MASTER_PATH)[0]
 MASTER_PATH = os.path.abspath(MASTER_PATH)
@@ -59,20 +64,20 @@ if not config.has_section('tftp'):
 if not config.has_section('plugins'):
     config.add_section('plugins')
 
-import plugins
-import inspect, pkgutil
-for (__, module_name, __) in list(pkgutil.iter_modules(plugins.__path__)):
+def load_plugins():
+    import plugins
+    import inspect, pkgutil
+    for (__, module_name, __) in list(pkgutil.iter_modules(plugins.__path__)):
+        
+        module = __import__("%s.%s" % (plugins.__name__, module_name)).__dict__[module_name]
+        for cls in dir(module):
+            cls=getattr(module,cls)
+            if (inspect.isclass(cls)
+                and cls.__name__ != plugins.BasePlugin.__name__ #@UndefinedVariable
+                and issubclass(cls, plugins.BasePlugin)):
+                logger.debug('found in {f}: {c}'.format(f=module.__name__,c=cls))
+                ui_plugins.append((cls, {'disabled': False}))
     
-    module = __import__("%s.%s" % (plugins.__name__, module_name)).__dict__[module_name]
-    for cls in dir(module):
-        cls=getattr(module,cls)
-        if (inspect.isclass(cls)
-            and cls.__name__ != plugins.BasePlugin.__name__ #@UndefinedVariable
-            and issubclass(cls, plugins.BasePlugin)):
-            print('found in {f}: {c}'.format(f=module.__name__,c=cls))
-            ui_plugins.append((cls, {'disabled': False}))
-    
-
 # Set config variables
 dhcpServerAddress   = config.get('network', 'server-ip')
 dhcpInterface       = config.get('network', 'server-iface')
@@ -85,9 +90,8 @@ tftpRoot            = config.get('tftp', 'tftp-root-dir')
 tftpTftpy          = bool(config.getint('tftp', 'use_tftpy'))
 
 if not dhcpIpRange:
-    sys.stderr.write("Wrong initial DHCP in configuration... exiting")
+    logger.error("Wrong initial DHCP in configuration... exiting")
     sys.exit(1)
-    
 
 def write_config():
     

@@ -20,7 +20,7 @@ import gtk
 
 import settings
 
-from plugins import BasePlugin
+from plugins import BasePlugin #@UnresolvedImport
 
 class FairLoginPlugin(BasePlugin):
 
@@ -89,7 +89,7 @@ class FairLoginPlugin(BasePlugin):
             if r1.status == 200:
                 self.mainwindow_instance.fair_username = username
                 self.mainwindow_instance.fair_password = password
-                from ui.mainwindow import LogMsg
+                from master.ui.mainwindow import LogMsg
                 self.mainwindow_instance.appendLog(LogMsg("FAIR: Logged in as %s" % username))
                 self.win.destroy()
                 #def on_close(dialog, *args):

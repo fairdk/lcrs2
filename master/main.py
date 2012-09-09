@@ -20,6 +20,7 @@
 # along with LCRS.  If not, see <http://www.gnu.org/licenses/>.
 
 import gtk
+import argparse
 gtk.gdk.threads_init() #@UndefinedVariable
 
 import gobject
@@ -40,7 +41,6 @@ import logging
 import socket
 import threading
 
-from ui import splash
 from ui.mainwindow import BaseMainWindow
 import config_master
 
@@ -51,7 +51,7 @@ class GtkMaster():
     """
     """
     def __init__(self):
-        
+
         # Check if the selected interface is configured correctly...
         network_up = False
         try:
@@ -170,6 +170,31 @@ class GtkMaster():
 
 if __name__ == '__main__':
 
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description='Large-scale Computer Reuse Suite (LCRS)')
+    parser.add_argument('--debug', action='store_true', dest='debug',
+                       help='debug mode', default=False)        
+    args = parser.parse_args()
+    config_master.DEBUG = args.debug
+    
+    logger = logging.getLogger('lcrs')
+    ch = logging.StreamHandler()
+    fh = logging.FileHandler("/var/log/lcrs.log")
+    
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    ch.setFormatter(formatter)
+    fh.setFormatter(formatter)
+    logger.addHandler(ch)
+    logger.addHandler(fh)
+    
+    if args.debug:
+        logger.setLevel(logging.DEBUG)
+        logger.debug("Debug is enabled")
+    else:
+        logger.setLevel(logging.CRITICAL)
+    
+    config_master.load_plugins()
+    
     app = GtkMaster()
     gtk.main()
 

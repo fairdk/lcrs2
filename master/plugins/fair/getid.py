@@ -18,7 +18,7 @@
 import httplib
 import gtk
 
-from plugins import CallbackFailed, BasePlugin
+from plugins import CallbackFailed, BasePlugin #@UnresolvedImport
 
 import settings
 

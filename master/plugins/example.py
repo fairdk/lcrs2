@@ -17,7 +17,7 @@
 # You should have received a copy of the GNU General Public License
 # along with LCRS.  If not, see <http://www.gnu.org/licenses/>.
 
-from plugins import BasePlugin
+from plugins import BasePlugin #@UnresolvedImport
 
 class ExamplePlugin(BasePlugin):
     
