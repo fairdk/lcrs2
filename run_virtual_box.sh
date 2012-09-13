@@ -8,6 +8,7 @@
 # Furthermore, you MUST disable Virtualbox's DHCP server!!
 
 virtualbox&
+sleep 10s
 sudo brctl addbr br0
 sudo ifconfig br0 down
 sudo ifconfig br0 10.20.20.1 255.255.255.0

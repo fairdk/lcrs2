@@ -199,11 +199,13 @@ class Slave():
         if re_something.match(stderr):
             self.state = protocol.FAIL
             self.__fail_message = "Failed while wiping. Stderr was: %s" % stderr
+            logger.info(self.__fail_message)
             return
         if process.returncode > 0:
             self.state = protocol.FAIL
-            self.__fail_message = "Wipe failed."
-            return            
+            self.__fail_message = "Wipe failed. Return code from wipe: %d" % process.returncode
+            logger.info(self.__fail_message)
+            return
         self.progress = 1.0
         self.state = protocol.IDLE
         
