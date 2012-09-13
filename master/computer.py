@@ -485,7 +485,7 @@ class Computer():
                 raise ResponseFailException("Failed getting WIPE_OUTPUT: %s" % str(data))
             if state == protocol.IDLE:
                 self.state.update_progress(1.0)
-                logger.info("Finished: Computer ID %d" % self.id)
+                logger.info("Finished: Computer ID %s" % str(self.id))
                 break
             if state == protocol.BUSY:
                 progress = data
@@ -494,7 +494,7 @@ class Computer():
             callback_progress(self, progress) if callback_progress else ()
             time.sleep(2)
         
-        logger.info("Fetching dump for computer ID %d" % self.id)
+        logger.info("Fetching dump for computer ID %s" % str(self.id))
         self.hw_info["Hard drives"][dev_name]["Dump after"] = self.__wipe_dump(dev_name)
     
     def __wipe_dump(self, dev_name):
