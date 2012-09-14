@@ -1,10 +1,10 @@
 #!/usr/bin/python
 
 #
-# LCRS Copyright (C) 2009-2011
+# LCRS Copyright (C) 2009-2012
+# - Benjamin Bach
 # - Rene Jensen
 # - Michael Wojciechowski
-# - Benjamin Bach
 #
 # LCRS is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -29,12 +29,11 @@ import re
 
 # create logger
 logger = logging.getLogger('lcrs_slave')
-logger.setLevel(logging.DEBUG)
 ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(levelname)s - %(message)s')
 ch.setFormatter(formatter)
 logger.addHandler(ch)
+logger.setLevel(logging.INFO)
 
 import settings
 import protocol
@@ -208,7 +207,12 @@ class Slave():
             return
         self.progress = 1.0
         self.state = protocol.IDLE
-        
+    
+    def debug_mode(self, data):
+        logger.setLevel(logging.DEBUG)
+        logger.debug("Switched on debug mode")
+        self.send_reply("Debug mode on!")
+    
     def badblocks(self, data):
         logger.info("Received BADBLOCKS command.")
         if self.state == protocol.BUSY:
@@ -294,13 +298,12 @@ class Slave():
     
     def __scan_thread(self, commands):
         # Execute a number of commands and return their output in the same order.
-        command_cnt = len(commands)
-        cnt = 0.0
+        command_cnt = float(len(commands))
         self.progress = 0.0
-        for command in commands:
+        for cnt, command in enumerate(commands, start=1):
             logger.info("SCAN executing command: %s" % command)
-            cnt = cnt + 1.0
-            self.progress = self.progress + cnt / command_cnt
+            self.progress = cnt / command_cnt
+            logger.debug("Progress: %.2f" % self.progress)
             try:
                 process = subprocess.Popen(command, stdout=subprocess.PIPE,
                                            stderr=subprocess.PIPE,
@@ -315,13 +318,14 @@ class Slave():
 if __name__ == "__main__":
     
     print ("""
- __        ______ .______          _______.   ____    ____  ___        ___   
-|  |      /      ||   _  \        /       |   \   \  /   / |__ \      / _ \  
-|  |     |  ,----'|  |_)  |      |   (----`    \   \/   /     ) |    | | | | 
-|  |     |  |     |      /        \   \         \      /     / /     | | | | 
-|  `----.|  `----.|  |\  \----.----)   |         \    /     / /_   __| |_| | 
-|_______| \______|| _| `._____|_______/           \__/     |____| (__)\___/  
-                                                                             
+
+                                                                               
+    _/          _/_/_/  _/_/_/      _/_/_/                    _/_/        _/   
+   _/        _/        _/    _/  _/            _/      _/  _/    _/    _/_/    
+  _/        _/        _/_/_/      _/_/        _/      _/      _/        _/     
+ _/        _/        _/    _/        _/        _/  _/      _/          _/      
+_/_/_/_/    _/_/_/  _/    _/  _/_/_/            _/      _/_/_/_/  _/  _/       
+
 """)
     print ""
     print "----------------------------------------------------"

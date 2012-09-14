@@ -1,10 +1,10 @@
 #!/usr/bin/python
 
 #
-# LCRS Copyright (C) 2009-2011
+# LCRS Copyright (C) 2009-2012
+# - Benjamin Bach
 # - Rene Jensen
 # - Michael Wojciechowski
-# - Benjamin Bach
 #
 # LCRS is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by

@@ -42,6 +42,7 @@ def translate_state(state):
     HARDWARE, # Get results from SCAN command
     SHELL_EXEC, # Execute a single command and return command ID
     SHELL_RESULTS, # Get results of a command ID
-    BADBLOCKS, # Get results of a command ID
-) = range(7) 
+    BADBLOCKS, # Scan for bad blocks
+    DEBUG_MODE, # Switch on debug mode
+) = range(8) 
 

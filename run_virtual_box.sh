@@ -8,6 +8,7 @@
 # Furthermore, you MUST disable Virtualbox's DHCP server!!
 
 virtualbox&
+echo "Waiting 10s for Virtualbox to configure network interface... standby..."
 sleep 10s
 sudo brctl addbr br0
 sudo ifconfig br0 down

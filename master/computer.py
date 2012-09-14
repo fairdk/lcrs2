@@ -27,6 +27,7 @@ from datetime import datetime
 
 from slave import protocol
 from slave import settings as slave_settings
+from master import config_master
 import re
 import random
 
@@ -113,6 +114,7 @@ class State:
                 self.__wipe_info = info
     
     def update_progress(self, progress):
+        """Progress is expressed as a floating percentage"""
         if self.state in [State.SCANNING, State.WIPING]:
             self.__progress = progress
     
@@ -197,7 +199,9 @@ class Computer():
         self.wipe_method = None
         self.wipe_hexsample_before = None # Hex-digest of some sector on HD
         self.wipe_hexsample_after  = None # Hex-digest of some sector on HD
-
+        
+        self.debug_mode_request = config_master.DEBUG
+        
         self.is_registered = False # Says whether the computer has been registered in some database
 
     def scan(self, callback_progress=None, callback_finished=None, 
@@ -226,13 +230,15 @@ class Computer():
         scan2_share = len(SCAN_ITERATION_2.keys()) / float(total_amount_of_commands)
         
         def callback_progress1(progress, state):
+            progress = progress * scan1_share
             self.state.update(State.SCANNING, info=protocol.translate_state(state),
-                              progress=progress/scan1_share)
+                              progress=progress)
             callback_progress(self, progress) if callback_progress else ()
         
         def callback_progress2(progress, state):
+            progress = progress * scan2_share
             self.state.update(State.SCANNING, info=protocol.translate_state(state),
-                              progress=progress/scan2_share)
+                              progress=progress)
             callback_progress(self, progress) if callback_progress else ()
 
         # Send the scan1 list of commands to execute
@@ -294,6 +300,7 @@ class Computer():
         while not self.scanned:
             (state, progress) = self.slave_state()
             callback_progress(progress, state) if callback_progress else ()
+            logger.debug("Assuming progress: %s" % progress)
             if state == protocol.FAIL:
                 self.state.update(State.SCAN_FAILED, "Scan failed during execution")
                 logger.warning("SCAN failed during execution.")
@@ -374,7 +381,7 @@ class Computer():
                 s.close()
                 retries += 1
                 if retries > 5: raise ConnectionException("Timeout while receiving reply")
-                time.sleep(10)
+                time.sleep(1)
                 self.state.update(State.NOT_CONNECTED, "Connection timeout")
                 continue
             except socket.error:
@@ -389,6 +396,14 @@ class Computer():
     def slave_state(self, **kwargs):
         """Get status message and progress from slave
         """
+        if self.debug_mode_request:
+            try:
+                request = (protocol.DEBUG_MODE, [])
+                state, response = self.__send_to_slave(request)
+                self.debug_mode_request = False
+                logger.debug("Requested debug mode for computer ID %s, response: %s" % (str(self.id), response))
+            except ConnectionException:
+                pass
         try:
             request = (protocol.STATUS, kwargs)
             state, progress = self.__send_to_slave(request)
@@ -468,8 +483,10 @@ class Computer():
                     break
                 if state == protocol.BUSY:
                     progress = data
+                    logger.debug("Received data assuming to be progress while doing badblocks and BUSY: %s" % data)
                 if state == protocol.DISCONNECTED:
                     self.state.update(State.NOT_CONNECTED, "Not connected")
+                    progress = None
                 callback_progress(self, progress) if callback_progress else ()
                 time.sleep(2)
 
@@ -489,8 +506,10 @@ class Computer():
                 break
             if state == protocol.BUSY:
                 progress = data
+                logger.debug("Received data assuming to be progress while doing badblocks and BUSY: %s" % data)
             if state == protocol.DISCONNECTED:
                 self.state.update(State.NOT_CONNECTED, "Not connected")
+                progress = None
             callback_progress(self, progress) if callback_progress else ()
             time.sleep(2)
         

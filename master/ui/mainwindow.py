@@ -180,23 +180,23 @@ class BaseMainWindow(MainWindow):
         for g in self.groups.keys():
             no_computers = no_computers + len(g.computers)
         
-        busy_computers = 0
+        busy_computers = []
         for g in self.groups.keys():
-            busy_computers = busy_computers + len(filter(lambda c: not ((not c.is_active()) or c.wiped or c.is_registered), g.computers))
-
-        finished_computers = 0
+            busy_computers += filter(lambda c: not ((not c.is_active()) or c.wiped or c.is_registered), g.computers)
+        
+        finished_computers = []
         for g in self.groups.keys():
-            finished_computers = finished_computers + len(filter(lambda c: c.wiped and c.is_registered, g.computers))
+            finished_computers += filter(lambda c: c.wiped and c.is_registered, g.computers)
 
         total_progress = 0.0
-        for g in self.groups.keys():
-            for c in filter(lambda c: not ((not c.is_active()) or c.wiped or c.is_registered), g.computers):
-                total_progress = total_progress + c.progress() / busy_computers
+        no_busy_computers = float(len(busy_computers))
+        for c in busy_computers:
+            total_progress += c.progress() / no_busy_computers
         
         self.getWidget('labelTotalComputers').set_text(str(no_computers))
-        self.getWidget('labelActiveComputers').set_text(str(busy_computers))
-        self.getWidget('labelFinishedComputers').set_text(str(finished_computers))
-        
+        self.getWidget('labelActiveComputers').set_text(str(len(busy_computers)))
+        self.getWidget('labelFinishedComputers').set_text(str(len(finished_computers)))
+
         self.getWidget('progressbarTotal').set_fraction(total_progress)
     
     def update_overall_status(self):
