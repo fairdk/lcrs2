@@ -182,7 +182,7 @@ class BaseMainWindow(MainWindow):
         
         busy_computers = []
         for g in self.groups.keys():
-            busy_computers += filter(lambda c: not ((not c.is_active()) or c.wiped or c.is_registered), g.computers)
+            busy_computers += filter(lambda c: c.is_active(), g.computers)
         
         finished_computers = []
         for g in self.groups.keys():
@@ -193,10 +193,18 @@ class BaseMainWindow(MainWindow):
         for c in busy_computers:
             total_progress += c.progress() / no_busy_computers
         
+        # Update window title
+        if no_busy_computers > 0:
+            self.win.set_title('LCRS (busy)')
+        elif len(finished_computers) == no_computers:
+            self.win.set_title('LCRS (everything complete)')
+        else:
+            self.win.set_title('LCRS (inactive)')
+        
+        # Update status sidebar
         self.getWidget('labelTotalComputers').set_text(str(no_computers))
         self.getWidget('labelActiveComputers').set_text(str(len(busy_computers)))
         self.getWidget('labelFinishedComputers').set_text(str(len(finished_computers)))
-
         self.getWidget('progressbarTotal').set_fraction(total_progress)
     
     def update_overall_status(self):
