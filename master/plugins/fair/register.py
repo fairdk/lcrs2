@@ -63,7 +63,10 @@ class FairRegisterPlugin(BasePlugin):
                                    })
         headers = {"Content-type": "application/x-www-form-urlencoded",
                    "Accept": "text/plain"}
-        conn = httplib.HTTPSConnection(settings.FAIR_SERVER)
+        if getattr(settings, 'USE_HTTPS', True):
+            conn = httplib.HTTPSConnection(settings.FAIR_SERVER)
+        else:
+            conn = httplib.HTTPConnection(settings.FAIR_SERVER)
         conn.request("POST", URL_REGISTER_WEBSERVICE, params, headers)
         response = conn.getresponse()
         data = response.read()

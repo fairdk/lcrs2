@@ -58,11 +58,11 @@ class GtkMaster():
             ifconfig = subprocess.check_output(["ifconfig", config_master.dhcpInterface])
             p_ifconfig = re.compile(r"inet\s*addr:\s*%s" % re.escape(config_master.dhcpServerAddress))
             if not p_ifconfig.search(ifconfig):
-                self.thread_failure_notify("The network interface (%s) is not up running with the correct IP address (%s). Check your settings or make sure that the network is running. Then restart." % (config_master.dhcpInterface, config_master.dhcpServerAddress))
+                self.thread_failure_notify("The network interface (%s) is not up running with the correct IP address (%s). Check your settings or make sure that the network is running. Then restart LCRS." % (config_master.dhcpInterface, config_master.dhcpServerAddress))
             else:
                 network_up = True
         except:
-            self.thread_failure_notify("The network interface (%s) that is configured for the master server does not exist. Please check your settings or make sure that the network is running. Then restart." % config_master.dhcpInterface)
+            self.thread_failure_notify("The network interface (%s) that is configured for the master server does not exist. Please check your settings or make sure that the network is running. Then restart LCRS." % config_master.dhcpInterface)
         
         #self.splash_window = splash.SplashWindow(self.start_main_window)     
         self.start_main_window()
@@ -184,14 +184,16 @@ if __name__ == '__main__':
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     ch.setFormatter(formatter)
     fh.setFormatter(formatter)
-    logger.addHandler(ch)
-    logger.addHandler(fh)
+    fh.setLevel(logging.DEBUG)
     
     if args.debug:
-        logger.setLevel(logging.DEBUG)
+        ch.setLevel(logging.DEBUG)
         logger.debug("Debug is enabled")
     else:
-        logger.setLevel(logging.CRITICAL)
+        ch.setLevel(logging.CRITICAL)
+    
+    logger.addHandler(ch)
+    logger.addHandler(fh)
     
     config_master.load_plugins()
     

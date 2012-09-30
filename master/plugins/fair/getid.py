@@ -37,7 +37,10 @@ class FairIDPlugin(BasePlugin):
         
         fail_msg = None
         try:
-            conn = httplib.HTTPSConnection(settings.FAIR_SERVER)
+            if getattr(settings, 'USE_HTTPS', True):
+                conn = httplib.HTTPSConnection(settings.FAIR_SERVER)
+            else:
+                conn = httplib.HTTPConnection(settings.FAIR_SERVER)
             conn.request("GET", "/materials/coresu/getid/?id=%s" % input_id)
             r1 = conn.getresponse()
             if r1.status == 200:

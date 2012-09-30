@@ -152,6 +152,7 @@ SCAN_ITERATION_1 = {
     "dmidecode -t memory": "analyze_dmidecode_memory",
     "cat /proc/cpuinfo": "analyze_cpu_data",
     "cat /proc/sys/dev/cdrom/info": "analyze_cdrom_info",
+    "cat /proc/acpi/battery/BAT0/info": "analyze_battery_info",
 }
 
 # Shell commands for second iteration. Each command has a tuple (analyze function, command parser)
@@ -506,7 +507,7 @@ class Computer():
                 break
             if state == protocol.BUSY:
                 progress = data
-                logger.debug("Received data assuming to be progress while doing badblocks and BUSY: %s" % data)
+                logger.debug("Received data assuming to be progress while doing wipe and BUSY: %s" % data)
             if state == protocol.DISCONNECTED:
                 self.state.update(State.NOT_CONNECTED, "Not connected")
                 progress = None
@@ -557,7 +558,7 @@ class Computer():
         """Asks the slave to perform a shutdown"""
         try:
             self.state.update(State.SHUTDOWN_REQUESTED, "Shutdown requested")
-            (state, data) = self.__send_to_slave((protocol.SHELL_EXEC, "halt")) #@UnusedVariable
+            (state, data) = self.__send_to_slave((protocol.SHELL_EXEC, "poweroff")) #@UnusedVariable
         except ConnectionException, __:
             pass
         self.state.update(State.SHUTDOWN_DETECTED, "Shutdown detected")
@@ -699,7 +700,7 @@ class Computer():
         memory = int(m.group(1)) / 1024 if m else 0
         hw_info["Memory"] = memory
         return hw_info
-
+    
     def analyze_cdrom_info(self, stdout, stderr, hw_info):
         filter_key_value = re.compile(r"^(\w[\w\s]+):\s+(\w[\w\s]+)$")
         drive_info = {}
@@ -725,7 +726,31 @@ class Computer():
         if drive_info:
             hw_info['Optical drive'] = drive_info
         return hw_info
-
+    
+    def analyze_battery_info(self, stdout, stderr, hw_info):
+        filter_key_value = re.compile(r"^(\w[\w\s]+):\s+(\w[\w\s]+)$")
+        design_capacity = ""
+        last_full_capacity = ""
+        for line in stdout.split("\n"):
+            key_value = filter_key_value.search(line)
+            if not key_value: continue
+            key, value = key_value.group(1), key_value.group(2)
+            if key == 'design capacity':
+                design_capacity = value
+            elif key == 'last full capacity':
+                last_full_capacity = value
+        if design_capacity and last_full_capacity:
+            hw_info['Battery'] = ("Design capacity: %s, Last full capacity: %s" % 
+                                  (design_capacity, last_full_capacity) )
+            filter_number = re.compile(r"^(\d+).*")
+            match_number_design = filter_number.search(design_capacity)
+            match_number_full = filter_number.search(last_full_capacity)
+            if match_number_design and match_number_full:
+                design_cap = match_number_design.group(1)
+                last_full_cap = match_number_full.group(1)
+                hw_info['Battery life'] = float(design_cap) / float(last_full_cap)
+        return hw_info
+    
     def analyze_hdparm(self, stdout, stderr, hw_info):
         filter_hdparm = re.compile(r"SerialNo=([\w\-]+)")
         if stdout:
