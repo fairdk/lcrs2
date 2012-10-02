@@ -748,7 +748,7 @@ class Computer():
             if match_number_design and match_number_full:
                 design_cap = match_number_design.group(1)
                 last_full_cap = match_number_full.group(1)
-                hw_info['Battery life'] = float(design_cap) / float(last_full_cap)
+                hw_info['Battery life'] = float(last_full_cap) / float(design_cap)
         return hw_info
     
     def analyze_hdparm(self, stdout, stderr, hw_info):
