@@ -564,9 +564,11 @@ class Computer():
         self.state.update(State.SHUTDOWN_DETECTED, "Shutdown detected")
         
     def is_connected(self):
+        """No wait return state of connection"""
         return self.state.is_connected
 
     def is_active(self):
+        """No wait return busy state"""
         return self.state.is_busy
     
     def is_scanning(self):

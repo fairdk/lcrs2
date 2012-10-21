@@ -126,6 +126,8 @@ class GroupPage():
         self.treeview.set_model(self.liststore)
         self.treeview.set_reorderable(False)
         
+        self.current_computer = None
+        
         t = threading.Thread(target=self.poll_computers)
         t.start()
 
@@ -142,7 +144,7 @@ class GroupPage():
     def on_cursor_changed(self, treeview):
         computer = self.get_selected_computer()
         if computer:
-            self.show_computer(computer, remove_busy=False)
+            self.show_computer(computer)
             
             
     def on_drag_data_received(self, treeview, context, x, y, selection, info, timestamp):
@@ -277,11 +279,16 @@ class GroupPage():
         """
         while self.mainwindow.alive:
             for computer in self.group.computers:
+                conn_before = computer.is_connected()
                 computer.update_state()
+                # Update currently displayed computer if it's changed!
+                if conn_before != computer.is_connected():
+                    if self.current_computer == computer or not self.current_computer:
+                        self.show_computer(computer)
                 gobject.idle_add(self.update_row, computer)
             time.sleep(2)
     
-    def show_computer(self, computer, remove_busy=True):
+    def show_computer(self, computer):
 
         if computer in self.panels.keys():
             panel = self.panels[computer]
@@ -290,7 +297,9 @@ class GroupPage():
             panel = ComputerPanel(computer, self)
             panel.update()
             self.panels[computer] = panel
-            
+        
+        self.current_computer = computer
+        
         self.set_content_pane(panel.get_widget())
 
     def show_get_id(self, computer):
