@@ -185,7 +185,7 @@ class GroupPage():
         Process scan and wipe requests. Receive callbacks from Computer object's threads.
         REMEMBER THREAD SAFETY!!!!
         """
-        gobject.idle_add(self.show_busy, computer)
+        #gobject.idle_add(self.show_busy, computer)
 
         def computer_progress(computer, progress):
             gobject.idle_add(self.update_row, computer)
@@ -282,10 +282,7 @@ class GroupPage():
             time.sleep(2)
     
     def show_computer(self, computer, remove_busy=True):
-        if computer.is_active() and computer.is_scanning():
-            self.show_busy(computer)
-            return
-        
+
         if computer in self.panels.keys():
             panel = self.panels[computer]
             panel.update()
