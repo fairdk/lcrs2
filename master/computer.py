@@ -161,6 +161,7 @@ SCAN_ITERATION_2 = {
     "echo %(sdX)s && hdparm -i /dev/%(sdX)s": ("analyze_hdparm", lambda com, hw: [com % {'sdX': key} for key in hw.get("Hard drives", {}).keys()]),
     "echo %(sdX)s && sdparm -q -p sn /dev/%(sdX)s": ("analyze_sdparm", lambda com, hw: [com % {'sdX': key} for key in hw.get("Hard drives", {}).keys()]),
     "echo %(sdX)s && blockdev --getsize64 /dev/%(sdX)s": ("analyze_blockdev", lambda com, hw: [com % {'sdX': key} for key in hw.get("Hard drives", {}).keys()]),
+    "echo %(sdX)s && readlink -f /sys/block/%(sdX)s/": ("analyze_sysblock", lambda com, hw: [com % {'sdX': key} for key in hw.get("Hard drives", {}).keys()]),
 }
 
 HDD_DUMP_COMMAND = "dd if=/dev/%(dev)s ibs=%(blocksize)d count=%(blocks)d skip=%(offset)d | hexdump -v"
@@ -642,6 +643,20 @@ class Computer():
                 logger.info("Found disk device /dev/%s" % dev_name)
 
         hw_info["Hard drives"] = harddrives
+        
+        ata_controllers = {}
+        re_ata_controllers = re.compile(r"^(ata\d)\:\s*(.+)")
+        for line in stdout.split("\n"):
+            m = re_ata_controllers.search(line)
+            if m:
+                ata_name = m.group(1)
+                info = m.group(2)
+                ata_controllers[ata_name] = {'info': info,
+                                             'pata': "PATA" in info,
+                                             'sata': "SATA" in info}
+                logger.info("Found ATA controller %s" % ata_name)
+        
+        hw_info["Hard drive controllers"] = ata_controllers
         return hw_info
     
     def analyze_dmidecode_memory(self, stdout, stderr, hw_info):
@@ -786,7 +801,20 @@ class Computer():
                 size_mb = int(m.group(1)) / 1024**2
                 hw_info["Hard drives"][dev_name]["Size"] = size_mb
         return hw_info
-
+    
+    def analyze_sysblock(self, stdout, stderr, hw_info):
+        if stdout:
+            dev_name = stdout.split("\n")[0]
+            if not dev_name:
+                return hw_info
+            for ata_name, info_dict in hw_info['Hard drive controllers'].items():
+                if '/'+ata_name in stdout:
+                    if info_dict['pata']:
+                        hw_info["Hard drives"][dev_name]["Interface"] = 'PATA'
+                    if info_dict['sata']:
+                        hw_info["Hard drives"][dev_name]["Interface"] = 'SATA'
+        return hw_info
+    
     def whatever(self ,stdout, stderr, hw_info):
         # TODO: Why is this function here?
         return hw_info
