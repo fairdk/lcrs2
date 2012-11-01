@@ -6,6 +6,6 @@ color cyan/blue white/blue
 #rootnoverify	(hd0)
 #chainloader	+1
 
-title		BuildRoot ISO9660 image
+title		LCRS
 kernel		/kernel
 initrd		/initrd

@@ -440,57 +440,105 @@ class Computer():
             return
         
         callback_progress(self, self.progress()) if callback_progress else ()
+
+        t = threading.Thread(target=self.__wipe_thread, 
+                             args=(method, badblocks,
+                                   callback_finished, callback_failed,
+                                   callback_progress))
+        t.setDaemon(True)
+        t.start()
+    
+    def __wipe_thread(self, method, badblocks=False,
+                        callback_finished=None, callback_failed=None,
+                        callback_progress=None):
         wipe_cnt = 0
         for dev_name in self.drives:
             wipe_cnt = wipe_cnt + 1
             self.state.update(State.WIPING, "Wiping drive %d of %d" % (wipe_cnt, len(self.drives)), progress=0.0)
             callback_progress(self, self.progress()) if callback_progress else ()
+
+            # 1) Get a dump
+            self.hw_info["Hard drives"][dev_name]["Dump before"] = self.__wipe_dump(dev_name)
+            
             try:
-                self.__wipe_drive(dev_name, method, badblocks, callback_progress)
+                if badblocks:
+                    self.state.update(State.WIPING, "Checking for badblocks on drive %d of %d" % (wipe_cnt, len(self.drives)))
+                    try:
+                        self.__bad_blocks(dev_name, callback_progress)
+                    except ResponseFailException, msg:
+                        self.state.update(State.WIPE_FAILED, "Badblocks failed on drive %d: %s" % (wipe_cnt, str(msg)), progress=0.0)
+                        callback_failed(self) if callback_failed else ()
+                        return
+                self.state.update(State.WIPING, "Wiping drive %d of %d" % (wipe_cnt, len(self.drives)))
+                self.__wipe_drive(dev_name, method, callback_progress)
             except ResponseFailException, msg:
                 self.state.update(State.WIPE_FAILED, "Wipe failed on drive %d: %s" % (wipe_cnt, str(msg)), progress=0.0)
                 callback_failed(self) if callback_failed else ()
                 return
 
+            logger.info("Fetching dump for computer ID %s" % str(self.id))
+            self.hw_info["Hard drives"][dev_name]["Dump after"] = self.__wipe_dump(dev_name)
+            dump_check = self.__verify_after_dump(self.hw_info["Hard drives"][dev_name].get("Dump after", " 1"))
+            if not dump_check:
+                self.state.update(State.WIPE_FAILED, "Dump after did not pass (drive %d of %d)" % (wipe_cnt, len(self.drives)))
+                callback_failed(self) if callback_failed else ()
+                return                
+        
         self.wiped = True
         self.state.update(State.WIPED, info="All drives wiped!", progress=1.0)
         self.wipe_finished_on = datetime.now()
         callback_finished(self) if callback_finished else ()
-
-    def __wipe_drive(self, dev_name, method, badblocks=False, callback_progress=None):
+    
+    def __verify_after_dump(self, dump_data):
+        """
+        Example of valid after data:
+        0000000 0000 0000 0000
+        0000001 0000 0000 0000
+        0000002 0000 0000 0000
+        Check is just to ensure that everything is zeros except the first
+        index number.
+        """
+        for line in dump_data.split("\n"):
+            for group in (line.split(" "))[1:]:
+                for char in group.strip():
+                    if not char == "0":
+                        return False
+        return True
         
-        self.hw_info["Hard drives"][dev_name]["Dump before"] = self.__wipe_dump(dev_name)
+    
+    def __bad_blocks(self, dev_name, callback_progress):
+        """Check a drive for bad blocks"""
+        badblocks_command = BADBLOCKS % {'dev': dev_name,}
+        request = (protocol.BADBLOCKS, badblocks_command)
+        self.__send_to_slave(request)
+        
+        while True:
+            
+            state, data = self.slave_state(fail_message=True)
+            if state == protocol.FAIL:
+                logger.error("Badblocks detected! Output was: %s" % str(data))
+                self.hw_info["Hard drives"][dev_name]["Badblocks"] = True
+                raise ResponseFailException("Badblocks detected (/dev/%s)!" % dev_name)
+            # TODO: Make a better solution for detecting finished jobs??
+            if state == protocol.IDLE:
+                self.state.update_progress(1.0)
+                self.hw_info["Hard drives"][dev_name]["Badblocks"] = False
+                break
+            if state == protocol.BUSY:
+                progress = data
+                logger.debug("Received data assuming to be progress while doing badblocks and BUSY: %s" % data)
+            if state == protocol.DISCONNECTED:
+                self.state.update(State.NOT_CONNECTED, "Not connected")
+                progress = None
+            callback_progress(self, progress) if callback_progress else ()
+            time.sleep(2)
+    
+    def __wipe_drive(self, dev_name, method, callback_progress=None):
         
         #TODO: Standardise these values all over the project!
         self.hw_info["Hard drives"][dev_name]["Wipe method"] = "wipe standard"
         self.hw_info["Hard drives"][dev_name]["Passes"] = 1
         callback_progress(self, self.progress()) if callback_progress else ()
-
-        if badblocks:
-            badblocks_command = BADBLOCKS % {'dev': dev_name,}
-            request = (protocol.BADBLOCKS, badblocks_command)
-            self.__send_to_slave(request)
-            
-            while True:
-                
-                state, data = self.slave_state(fail_message=True)
-                if state == protocol.FAIL:
-                    logger.error("Badblocks detected! Output was: %s" % str(data))
-                    self.hw_info["Hard drives"][dev_name]["Badblocks"] = True
-                    raise ResponseFailException("Badblocks detected!")
-                # TODO: Make a better solution for detecting finished jobs??
-                if state == protocol.IDLE:
-                    self.state.update_progress(1.0)
-                    self.hw_info["Hard drives"][dev_name]["Badblocks"] = False
-                    break
-                if state == protocol.BUSY:
-                    progress = data
-                    logger.debug("Received data assuming to be progress while doing badblocks and BUSY: %s" % data)
-                if state == protocol.DISCONNECTED:
-                    self.state.update(State.NOT_CONNECTED, "Not connected")
-                    progress = None
-                callback_progress(self, progress) if callback_progress else ()
-                time.sleep(2)
 
         wipe_command = WIPE_METHODS[method] % {'dev': dev_name,}
         request = (protocol.WIPE, wipe_command)
@@ -499,13 +547,15 @@ class Computer():
         while True:
             
             state, data = self.slave_state(fail_message=True)
-            if state == protocol.FAIL:
-                logger.error("Something went wrong when wiping: %s" % str(data))
-                raise ResponseFailException("Failed getting WIPE_OUTPUT: %s" % str(data))
             if state == protocol.IDLE:
                 self.state.update_progress(1.0)
                 logger.info("Finished: Computer ID %s" % str(self.id))
                 break
+            if state == protocol.FAIL:
+                logger.error("Something went wrong when wiping: %s" % str(data))
+                err_msg = "Failed getting WIPE_OUTPUT: %s" % str(data)
+                self.state.update(State.WIPE_FAILED, err_msg)
+                raise ResponseFailException(err_msg)
             if state == protocol.BUSY:
                 progress = data
                 logger.debug("Received data assuming to be progress while doing wipe and BUSY: %s" % data)
@@ -515,8 +565,6 @@ class Computer():
             callback_progress(self, progress) if callback_progress else ()
             time.sleep(2)
         
-        logger.info("Fetching dump for computer ID %s" % str(self.id))
-        self.hw_info["Hard drives"][dev_name]["Dump after"] = self.__wipe_dump(dev_name)
     
     def __wipe_dump(self, dev_name):
         

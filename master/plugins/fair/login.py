@@ -117,6 +117,7 @@ class FairLoginPlugin(BasePlugin):
         if fail_msg:
 
             def on_close(dialog, *args):
+                self.glade.get_object('buttonLogin').set_sensitive(True)
                 dialog.destroy()
 
             dialog = gtk.MessageDialog(parent=self.win,
