@@ -169,7 +169,8 @@ HDD_DUMP_BLOCKSIZE = 512
 HDD_DUMP_BLOCKS = 1
         
 WIPE_METHODS = {
-    "Wipe (zeros)": "wipe -z -v -l0 -p1 /dev/%(dev)s"
+    "Wipe (zeros)": "wipe -z -v -l0 -p1 /dev/%(dev)s",
+#    "ATA Secure Erase": "wipe -z -v -l0 -p1 /dev/%(dev)s",
 }
 
 # Output badblocks in a file. If file is non-empty exit with non-zero return code

@@ -45,3 +45,10 @@ To rebuild:
 Make sure to do this if you've made basic changes as there are many
 dependencies in buildroot. If you've just added a new program, you
 don't need to rebuild, just run make.
+
+To rebuild just the kernel:
+
+cd output/build/linux-xx/
+make clean
+cd ../../../
+make
