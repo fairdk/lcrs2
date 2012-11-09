@@ -38,6 +38,9 @@ sys.path.append(".")
 sys.path.append(MASTER_PATH)
 
 import logging
+
+logger = logging.getLogger('lcrs')
+
 import socket
 import threading
 
@@ -105,16 +108,30 @@ class GtkMaster():
             tftp_path = os.path.abspath(config_master.tftpRoot)
             if not os.path.exists(tftp_path):
                 error = "TFTP directory does not exist! Could not start TFTP server. Please check your settings."
-                print error
+                logger.error(error)
                 self.thread_failure_notify(error)
             else:
                 os.system("killall in.tftpd")
                 os.system("stop tftpd-hpa")
-                print "Starting in.tftpd server in %s " % tftp_path
-                ret = os.system("in.tftpd -a %s -s -l %s" % (config_master.dhcpServerAddress,
-                                                             tftp_path))
-                if ret != 0:
-                    self.thread_failure_notify("Could not start TFTP server. Are you running the program with root privileges? Maybe you should do apt-get install tftpd-hpa")
+                tftp_command = (
+                    config_master.TFTP_COMMAND % 
+                    {'ip': config_master.dhcpServerAddress, 'path': tftp_path}
+                )
+                logger.info("Starting TFTP server: %s " % tftp_command)
+                tftpd_process = subprocess.Popen(
+                    str(tftp_command), stdout=subprocess.PIPE, 
+                    stderr=subprocess.STDOUT, shell=True
+                )
+                while tftpd_process.poll() is None:
+                    stdout = tftpd_process.stdout.read(10)
+                    if stdout:
+                        logger.debug("tftpd: %s" % stdout)
+                stderr = tftpd_process.stdout.read()
+                if tftpd_process.returncode > 0:
+                    error_msg = "Could not start TFTP server. Are you running the program with root privileges? Maybe you should do apt-get install tftpd-hpa.\n\nError was:" % stderr
+                    self.thread_failure_notify(error_msg)
+                    logger.error(error_msg)
+                logger.debug("tftpd finished")
 
         if network_up:
             self.tftp_thread = threading.Thread (target = tftpyListen if config_master.tftpTftpy else tftpdListen)
@@ -158,7 +175,7 @@ class GtkMaster():
         
         ip = self.dhcpIp4Range.pop(0)
         
-        newmaster = Computer(None, str(ip), str(hwAddr))
+        newmaster = Computer(None, str(ip), str(hwAddr), config_master)
         self.groups[0].addComputer(newmaster)
         self.appWindow.appendComputer(newmaster, self.groups[0])
         return ip
@@ -177,7 +194,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
     config_master.DEBUG = args.debug
     
-    logger = logging.getLogger('lcrs')
     ch = logging.StreamHandler()
     fh = logging.FileHandler("/var/log/lcrs.log")
     
@@ -187,7 +203,7 @@ if __name__ == '__main__':
     fh.setLevel(logging.DEBUG)
     
     if args.debug:
-        ch.setLevel(logging.DEBUG)
+        logger.setLevel(logging.DEBUG)
         logger.debug("Debug is enabled")
     else:
         ch.setLevel(logging.CRITICAL)

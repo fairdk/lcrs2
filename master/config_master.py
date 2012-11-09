@@ -17,35 +17,27 @@
 import ConfigParser
 import os, sys
 
-#from plugins.example import ExamplePlugin
-#from plugins.fair.getid import FairIDPlugin
-#from plugins.fair.register import FairRegisterPlugin
-#from plugins.fair.login import FairLoginPlugin
+import logging
+logger = logging.getLogger('lcrs')
 
-#import db.dummy as db
+DEBUG = False
 
+TFTP_COMMAND = "in.tftpd -a %(ip)s -s -l -v -v -v -L %(path)s"
 
-# A list of callables that will receive the MainWindow instance
-# At some point someone might decide to create a plugin system that
-# does not connect to the UI... which is why we name this one "ui_plugins".
+MASTER_PATH = os.path.abspath(__file__)
+MASTER_PATH = os.path.split(MASTER_PATH)[0]
+MASTER_PATH = os.path.abspath(MASTER_PATH)
+
+# TODO: Is this really necessary??
+sys.path.append(".")
+sys.path.append(MASTER_PATH)
+
 ui_plugins = [
     #(ExamplePlugin, {'disabled': False,}),
     #(FairIDPlugin, {'disabled': False,}),
     #(FairRegisterPlugin, {'disabled': False,}),
     #(FairLoginPlugin, {'disabled': False,}),
 ]
-
-DEBUG = False
-
-import logging
-logger = logging.getLogger('lcrs')
-
-MASTER_PATH = os.path.abspath(__file__)
-MASTER_PATH = os.path.split(MASTER_PATH)[0]
-MASTER_PATH = os.path.abspath(MASTER_PATH)
-
-sys.path.append(".")
-sys.path.append(MASTER_PATH)
 
 DEFAULT_CONFIG_FILE = os.path.join(MASTER_PATH, "config_master_default.cfg")
 
@@ -106,4 +98,3 @@ def write_config():
     f = open(CONFIG_FILE, 'wb')
     config.write(f)
 
-#write_config()

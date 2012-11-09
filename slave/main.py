@@ -26,6 +26,8 @@ import subprocess
 import json
 import logging
 import re
+import os
+import signal
 
 # create logger
 logger = logging.getLogger('lcrs_slave')
@@ -33,7 +35,7 @@ ch = logging.StreamHandler()
 formatter = logging.Formatter('%(levelname)s - %(message)s')
 ch.setFormatter(formatter)
 logger.addHandler(ch)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.WARNING)
 
 import settings
 import protocol
@@ -49,7 +51,7 @@ class Slave():
     def __init__(self):
         self.socket = None
         self.state = protocol.IDLE
-        self.progress = 0.0
+        self.__progress = 0.0
         self.shell_exec_cnt = 0
         self.shell_exec_results = {}
         
@@ -57,9 +59,19 @@ class Slave():
         self.thread.setDaemon(True)
         self.thread.start()
         
+        self.__wipe_done = False
+        self.__badblocks_done = False
+        
+        self.pids = []
+        
         self.__fail_message = ""
         self.__wipe_output = None
-
+        
+        self.__active = True
+    
+    def stop(self):
+        self.__active = False
+    
     def listen(self, listen_port=None):
         """
         Read messages from clients. If the client closes its
@@ -71,14 +83,14 @@ class Slave():
         self.socket.bind ( ('', listen_port if listen_port else settings.LISTEN_PORT) )
         self.socket.listen(10)
 
-        while True:
+        while self.__active:
             try:
                 self.client, address = self.socket.accept()
                 logger.info("Received connection from %s." % str(address))
             except socket.timeout:
                 continue
             
-            while True:
+            while self.__active:
                 try:
                     self.client.settimeout(settings.CLIENT_TIMEOUT)
                     raw_data = self.client.recv(settings.MAX_PACKET_SIZE)
@@ -126,6 +138,10 @@ class Slave():
             return self.shell_results(data)
         if command == protocol.BADBLOCKS:
             return self.badblocks(data)
+        if command == protocol.RESET:
+            return self.reset(data)
+        if command == protocol.DEBUG_MODE:
+            return self.debug_mode(data)
         
         raise RequestException("Received unknown command ID: %s" % str(command))
         
@@ -172,7 +188,8 @@ class Slave():
         if self.state == protocol.BUSY:
             raise RequestException("Cannot execute WIPE - current state is BUSY.")
         self.state = protocol.BUSY
-        self.progress = 0.0
+        self.__wipe_done = False
+        self.__progress = 0.0
         
         t = threading.Thread(target=self.__wipe_thread, args=(data,))
         t.setDaemon(True)
@@ -183,6 +200,7 @@ class Slave():
     def __wipe_thread(self, command):
         process = subprocess.Popen(str(command), bufsize=1, stdout=subprocess.PIPE, 
                                    stderr=subprocess.PIPE, shell=True, universal_newlines=True)
+        self.pids.append(process.pid)
         print ""
         while process.poll() is None:
             stdout = process.stdout.readline()
@@ -190,8 +208,8 @@ class Slave():
             m = re_pct.search(stdout)
             if m:
                 pct = int(m.group(1))
-                self.progress = pct / 100.0
-                logger.info("Wipe progress: %d%%" % (self.progress*100))
+                self.__progress = pct / 100.0
+                logger.info("Wipe progress: %d%%" % (self.__progress*100))
         stderr = process.stdout.read()
         if process.returncode > 0:
             self.state = protocol.FAIL
@@ -199,20 +217,22 @@ class Slave():
                                    (process.returncode, stderr))
             logger.error(self.__fail_message)
             return
-        self.progress = 1.0
+        self.__wipe_done = True
+        self.__progress = 1.0
         self.state = protocol.IDLE
     
     def debug_mode(self, data):
         logger.setLevel(logging.DEBUG)
         logger.debug("Switched on debug mode")
-        self.send_reply("Debug mode on!")
+        self.send_reply(None)
     
     def badblocks(self, data):
         logger.info("Received BADBLOCKS command.")
         if self.state == protocol.BUSY:
             raise RequestException("Cannot execute BADBLOCKS - current state is BUSY.")
         self.state = protocol.BUSY
-        self.progress = 0.0
+        self.__badblocks_done = False
+        self.__progress = 0.0
         
         t = threading.Thread(target=self.__badblocks_thread, args=(data,))
         t.setDaemon(True)
@@ -223,19 +243,21 @@ class Slave():
     def __badblocks_thread(self, command):
         process = subprocess.Popen(str(command), stdout=subprocess.PIPE, 
                                    stderr=subprocess.STDOUT, shell=True)
+        self.pids.append(process.pid)
         while process.poll() is None:
             stdout = process.stdout.read(16)
             re_pct = re.compile(r"(\d\d)\.\d+%", re.M)
             m = re_pct.search(stdout)
             if m:
                 pct = int(m.group(1))
-                self.progress = pct / 100.0
-                logger.info("Badblocks progress: %d%%" % (self.progress * 100))
+                self.__progress = pct / 100.0
+                logger.info("Badblocks progress: %d%%" % (self.__progress * 100))
         if process.returncode > 0:
             self.state = protocol.FAIL
-            self.__fail_message = "Badblocks detected!"
+            self.__fail_message = "Badblocks failed." 
             return
-        self.progress = 1.0
+        self.__progress = 1.0
+        self.__badblocks_done = True
         self.state = protocol.IDLE
 
     def shell_exec(self, data):
@@ -277,11 +299,10 @@ class Slave():
         
     def status(self, data):
         logger.info("Received STATUS command.")
-        if data and type(data) == dict:
-            if data.get("fail_message", False):
-                self.send_reply(self.__fail_message)
-                return
-        self.send_reply(self.progress)
+        self.send_reply({'progress': self.__progress,
+                         'badblocks_done': self.__badblocks_done,
+                         'wipe_done': self.__wipe_done,
+                         'fail_message': self.__fail_message})
     
     def hardware(self, data):
         logger.info("Received HARDWARE command.")
@@ -293,11 +314,11 @@ class Slave():
     def __scan_thread(self, commands):
         # Execute a number of commands and return their output in the same order.
         command_cnt = float(len(commands))
-        self.progress = 0.0
+        self.__progress = 0.0
         for cnt, command in enumerate(commands, start=1):
             logger.info("SCAN executing command: %s" % command)
-            self.progress = cnt / command_cnt
-            logger.debug("Progress: %.2f" % self.progress)
+            self.__progress = cnt / command_cnt
+            logger.debug("Progress: %.2f" % self.__progress)
             try:
                 process = subprocess.Popen(command, stdout=subprocess.PIPE,
                                            stderr=subprocess.PIPE,
@@ -308,7 +329,19 @@ class Slave():
                 self.scan_results[command] = (stdout, "Command does not exist")
         
         self.state = protocol.IDLE
-        
+    
+    def reset(self, data):
+        """Command asks the client to reset and terminate all running processes"""
+        logger.info("Received RESET command.")
+        self.__wipe_done = False
+        self.badblocks_done = False
+        for pid in self.pids:
+            os.killpg(pid, signal.SIGTERM)
+        self.__fail_message = ""
+        self.state = protocol.RESET
+        self.send_reply(None)
+    
+            
 if __name__ == "__main__":
     
     print ("""
@@ -333,6 +366,8 @@ _/_/_/_/    _/_/_/  _/    _/  _/_/_/            _/      _/_/_/_/  _/  _/
         s = raw_input()
         if s == 'q':
             print "Goodbye!"
+            slave.reset(None)
+            slave.stop()
             exit(0)
         else:
             time.sleep(1)

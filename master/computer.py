@@ -27,7 +27,7 @@ from datetime import datetime
 
 from slave import protocol
 from slave import settings as slave_settings
-from master import config_master
+
 import re
 import random
 
@@ -115,7 +115,7 @@ class State:
     
     def update_progress(self, progress):
         """Progress is expressed as a floating percentage"""
-        if self.state in [State.SCANNING, State.WIPING]:
+        if not progress is None and self.state in [State.SCANNING, State.WIPING]:
             self.__progress = progress
     
     @property
@@ -180,7 +180,7 @@ class Computer():
     """
     """
     
-    def __init__(self, computer_id, ipAddress, macAddress):
+    def __init__(self, computer_id, ipAddress, macAddress, config_master):
 
         self.id = computer_id or 0
         self.ipAddress = ipAddress
@@ -205,7 +205,8 @@ class Computer():
         self.wipe_hexsample_after  = None # Hex-digest of some sector on HD
         
         self.debug_mode_request = config_master.DEBUG
-        
+        print self.debug_mode_request
+
         self.is_registered = False # Says whether the computer has been registered in some database
 
     def scan(self, callback_progress=None, callback_finished=None, 
@@ -302,7 +303,8 @@ class Computer():
         # Start monitoring scan 1
         self.state.update(State.SCANNING, "Scanning...")
         while not self.scanned:
-            (state, progress) = self.slave_state()
+            (state, data) = self.slave_state()
+            progress = data.get('progress', None) if hasattr(data, "get") else None
             callback_progress(progress, state) if callback_progress else ()
             logger.debug("Assuming progress: %s" % progress)
             if state == protocol.FAIL:
@@ -342,8 +344,8 @@ class Computer():
     def __send_to_slave(self, request):
         request = json.dumps(request)
         reply = ""
-        for __ in range(10):
-            # Retry 10 times
+        for __ in range(3):
+            # Retry 3 times
             try:
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 s.settimeout (2.0)
@@ -410,15 +412,15 @@ class Computer():
                 pass
         try:
             request = (protocol.STATUS, kwargs)
-            state, progress = self.__send_to_slave(request)
-            return state, progress
+            state, data = self.__send_to_slave(request)
+            return state, data
         except ConnectionException:
             return (protocol.DISCONNECTED, "Could not connect")
 
     def update_state(self):
-        state, progress = self.slave_state()
+        state, data = self.slave_state()
         if not state == protocol.DISCONNECTED:
-            self.state.update_progress(progress)
+            self.state.update_progress(data.get('progress', None))
     
     def wipe(self, method, badblocks=False,
              callback_finished=None, callback_failed=None,
@@ -456,13 +458,14 @@ class Computer():
         wipe_cnt = 0
         for dev_name in self.drives:
             wipe_cnt = wipe_cnt + 1
-            self.state.update(State.WIPING, "Wiping drive %d of %d" % (wipe_cnt, len(self.drives)), progress=0.0)
             callback_progress(self, self.progress()) if callback_progress else ()
 
-            # 1) Get a dump
-            self.hw_info["Hard drives"][dev_name]["Dump before"] = self.__wipe_dump(dev_name)
-            
             try:
+                # 1) Get a dump
+                logger.debug("Fetching before dump for computer ID %s" % str(self.id))
+                self.hw_info["Hard drives"][dev_name]["Dump before"] = self.__wipe_dump(dev_name)
+                logger.debug("Received before dump from Computer ID %s" % str(self.id))
+                
                 if badblocks:
                     self.state.update(State.WIPING, "Checking for badblocks on drive %d of %d" % (wipe_cnt, len(self.drives)))
                     try:
@@ -473,13 +476,15 @@ class Computer():
                         return
                 self.state.update(State.WIPING, "Wiping drive %d of %d" % (wipe_cnt, len(self.drives)))
                 self.__wipe_drive(dev_name, method, callback_progress)
+                logger.debug("Fetching after dump for computer ID %s" % str(self.id))
+                self.hw_info["Hard drives"][dev_name]["Dump after"] = self.__wipe_dump(dev_name)
+                logger.debug("Received after dump from Computer ID %s" % str(self.id))
+
             except ResponseFailException, msg:
                 self.state.update(State.WIPE_FAILED, "Wipe failed on drive %d: %s" % (wipe_cnt, str(msg)), progress=0.0)
                 callback_failed(self) if callback_failed else ()
                 return
 
-            logger.info("Fetching dump for computer ID %s" % str(self.id))
-            self.hw_info["Hard drives"][dev_name]["Dump after"] = self.__wipe_dump(dev_name)
             dump_check = self.__verify_after_dump(self.hw_info["Hard drives"][dev_name].get("Dump after", " 1"))
             if not dump_check:
                 self.state.update(State.WIPE_FAILED, "Dump after did not pass (drive %d of %d)" % (wipe_cnt, len(self.drives)))
@@ -514,25 +519,39 @@ class Computer():
         request = (protocol.BADBLOCKS, badblocks_command)
         self.__send_to_slave(request)
         
+        self.state.update_progress(0.0)
+        callback_progress(self, self.progress()) if callback_progress else ()
+
+        logger.debug("Doing badblocks on Computer ID %s" % str(self.id))
+        
         while True:
             
-            state, data = self.slave_state(fail_message=True)
-            if state == protocol.FAIL:
-                logger.error("Badblocks detected! Output was: %s" % str(data))
-                self.hw_info["Hard drives"][dev_name]["Badblocks"] = True
-                raise ResponseFailException("Badblocks detected (/dev/%s)!" % dev_name)
-            # TODO: Make a better solution for detecting finished jobs??
-            if state == protocol.IDLE:
+            state, data = self.slave_state()
+            
+            if hasattr(data, "get") and data.get('badblocks_done', False):
                 self.state.update_progress(1.0)
                 self.hw_info["Hard drives"][dev_name]["Badblocks"] = False
                 break
-            if state == protocol.BUSY:
-                progress = data
-                logger.debug("Received data assuming to be progress while doing badblocks and BUSY: %s" % data)
-            if state == protocol.DISCONNECTED:
+
+            elif state == protocol.FAIL:
+                logger.error("Badblocks detected! Output was: %s" % str(data))
+                self.hw_info["Hard drives"][dev_name]["Badblocks"] = True
+                raise ResponseFailException("Badblocks detected (/dev/%s)!" % dev_name)
+            
+            elif state == protocol.BUSY:
+                progress = data.get('progress', None) if hasattr(data, "get") else None
+                self.state.update_progress(progress)
+                logger.debug("Received data assuming to be progress while doing badblocks and BUSY: %s" % str(data))
+            
+            elif state == protocol.DISCONNECTED:
                 self.state.update(State.NOT_CONNECTED, "Not connected")
-                progress = None
-            callback_progress(self, progress) if callback_progress else ()
+            
+            else:
+                pass
+            
+            logger.debug("Badblocks doing callback_progress")
+            callback_progress(self, self.progress()) if callback_progress else ()
+            logger.debug("Badblocks did callback_progress")
             time.sleep(2)
     
     def __wipe_drive(self, dev_name, method, callback_progress=None):
@@ -540,6 +559,8 @@ class Computer():
         #TODO: Standardise these values all over the project!
         self.hw_info["Hard drives"][dev_name]["Wipe method"] = "wipe standard"
         self.hw_info["Hard drives"][dev_name]["Passes"] = 1
+
+        self.state.update_progress(0.0)
         callback_progress(self, self.progress()) if callback_progress else ()
 
         wipe_command = WIPE_METHODS[method] % {'dev': dev_name,}
@@ -548,23 +569,34 @@ class Computer():
         
         while True:
             
-            state, data = self.slave_state(fail_message=True)
-            if state == protocol.IDLE:
+            state, data = self.slave_state()
+
+            if hasattr(data, "get") and data.get('wipe_done', False):
                 self.state.update_progress(1.0)
                 logger.info("Finished: Computer ID %s" % str(self.id))
                 break
-            if state == protocol.FAIL:
+            
+            elif state == protocol.FAIL:
                 logger.error("Something went wrong when wiping: %s" % str(data))
                 err_msg = "Failed getting WIPE_OUTPUT: %s" % str(data)
                 self.state.update(State.WIPE_FAILED, err_msg)
                 raise ResponseFailException(err_msg)
-            if state == protocol.BUSY:
-                progress = data
-                logger.debug("Received data assuming to be progress while doing wipe and BUSY: %s" % data)
-            if state == protocol.DISCONNECTED:
+            
+            elif state == protocol.IDLE:
+                logger.error("Wipe was interrupted. Error: %s" % str(data))
+                err_msg = "Wipe was interrupted. Error: %s" % str(data)
+                self.state.update(State.WIPE_FAILED, err_msg)
+                raise ResponseFailException(err_msg)
+
+            elif state == protocol.BUSY:
+                progress = data.get('progress', None) if hasattr(data, "get") else None
+                self.state.update_progress(progress)
+                logger.debug("Received data assuming to be progress while doing wipe and BUSY: %s" % str(data))
+            
+            elif state == protocol.DISCONNECTED:
                 self.state.update(State.NOT_CONNECTED, "Not connected")
-                progress = None
-            callback_progress(self, progress) if callback_progress else ()
+            
+            callback_progress(self, self.progress()) if callback_progress else ()
             time.sleep(2)
         
     
@@ -576,7 +608,7 @@ class Computer():
             offset = random.randint(0, size_mb*1024*1024 / HDD_DUMP_BLOCKSIZE - 1)
         else:
             offset = 1
-
+        
         command = HDD_DUMP_COMMAND % {'dev': dev_name,
                                       'blocksize': HDD_DUMP_BLOCKSIZE,
                                       'blocks': HDD_DUMP_BLOCKS,

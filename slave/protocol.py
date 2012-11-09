@@ -21,7 +21,8 @@
 ( IDLE,
   FAIL,
   BUSY,
-  DISCONNECTED ) = range(4)
+  DISCONNECTED,
+  RESET, ) = range(5)
 
 def translate_state(state):
     global IDLE, FAIL, BUSY
