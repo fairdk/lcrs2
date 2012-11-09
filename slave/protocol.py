@@ -22,7 +22,7 @@
   FAIL,
   BUSY,
   DISCONNECTED,
-  RESET, ) = range(5)
+  ) = range(4)
 
 def translate_state(state):
     global IDLE, FAIL, BUSY
@@ -45,5 +45,6 @@ def translate_state(state):
     SHELL_RESULTS, # Get results of a command ID
     BADBLOCKS, # Scan for bad blocks
     DEBUG_MODE, # Switch on debug mode
-) = range(8) 
+    RESET,
+) = range(9) 
 

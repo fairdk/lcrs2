@@ -330,15 +330,24 @@ class Slave():
         
         self.state = protocol.IDLE
     
+    def killall(self):
+    
+        self.__wipe_done = False
+        self.__fail_message = ""
+        self.__badblocks_done = False
+        try:
+            for pid in self.pids:
+                os.killpg(pid, signal.SIGTERM)
+        except OSError:
+            # Nothing important, probably process is already done
+            pass
+        self.state = protocol.IDLE
+            
     def reset(self, data):
         """Command asks the client to reset and terminate all running processes"""
         logger.info("Received RESET command.")
-        self.__wipe_done = False
-        self.badblocks_done = False
-        for pid in self.pids:
-            os.killpg(pid, signal.SIGTERM)
-        self.__fail_message = ""
         self.state = protocol.RESET
+        self.killall()
         self.send_reply(None)
     
             
@@ -366,7 +375,7 @@ _/_/_/_/    _/_/_/  _/    _/  _/_/_/            _/      _/_/_/_/  _/  _/
         s = raw_input()
         if s == 'q':
             print "Goodbye!"
-            slave.reset(None)
+            slave.killall()
             slave.stop()
             exit(0)
         else:
