@@ -546,8 +546,11 @@ class Computer():
             elif state == protocol.DISCONNECTED:
                 self.state.update(State.NOT_CONNECTED, "Not connected")
             
-            else:
-                pass
+            elif state == protocol.IDLE:
+                logger.error("Badblocks was interrupted. Error: %s" % str(data))
+                err_msg = "Badblocks was interrupted. Error: %s" % str(data)
+                self.state.update(State.WIPE_FAILED, err_msg)
+                raise ResponseFailException(err_msg)
             
             logger.debug("Badblocks doing callback_progress")
             callback_progress(self, self.progress()) if callback_progress else ()
@@ -646,6 +649,16 @@ class Computer():
             pass
         self.state.update(State.SHUTDOWN_DETECTED, "Shutdown detected")
         
+    def reset(self):
+        """Asks the slave to reset everything"""
+        try:
+            (state, data) = self.__send_to_slave((protocol.RESET, None)) #@UnusedVariable
+            self.state.update(State.INITIALIZED, "Reset")
+            self.wiped = False
+            self.scanned = False
+        except ConnectionException, __:
+            self.state.update(self.state, "Reset failed")
+
     def is_connected(self):
         """No wait return state of connection"""
         return self.state.is_connected

@@ -371,6 +371,7 @@ class GroupPage():
         """
         May be called from other UI elements
         """
+        computer.reset()
         computer.update_state()
         self.update_row(computer)
         if computer in self.panels:
