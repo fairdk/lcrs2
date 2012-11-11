@@ -22,12 +22,11 @@
 import threading
 import socket
 import time
-import subprocess
 import json
 import logging
 import re
 import os
-import signal
+import sys
 
 # create logger
 logger = logging.getLogger('lcrs_slave')
@@ -39,6 +38,7 @@ logger.setLevel(logging.INFO)
 
 import settings
 import protocol
+from asyncproc import Process
 
 class RequestException(Exception):
     def __init__(self, value):
@@ -55,14 +55,15 @@ class Slave():
         self.shell_exec_cnt = 0
         self.shell_exec_results = {}
         
-        self.thread   = threading.Thread (target = self.listen,)
+        self.thread = threading.Thread (target = self.listen,)
         self.thread.setDaemon(True)
         self.thread.start()
         
         self.__wipe_done = False
         self.__badblocks_done = False
         
-        self.pids = []
+        self.signal_mainthread_killall = False
+        self.processes = []
         
         self.__fail_message = ""
         self.__wipe_output = None
@@ -122,6 +123,10 @@ class Slave():
                 logger.warning("Request exception: %s" % error_msg)
                 self.state = protocol.FAIL
                 self.send_reply(client_socket, str(error_msg))
+            except:
+                self.state = protocol.FAIL
+                self.send_reply(client_socket, "Error in slave: %s" % sys.exc_info()[0])
+                raise
             client_socket.close()
         
     
@@ -209,23 +214,28 @@ class Slave():
         return None
     
     def __wipe_thread(self, command):
-        process = subprocess.Popen(str(command), bufsize=1, stdout=subprocess.PIPE, 
-                                   stderr=subprocess.PIPE, shell=True, universal_newlines=True)
-        self.pids.append(process.pid)
-        print ""
-        while process.poll() is None:
-            stdout = process.stdout.readline()
-            re_pct = re.compile(r"(\d+)%", re.M)
+        process = Process(command, shell=True)
+        self.processes.append(process)
+        re_pct = re.compile(r"(\d+)%", re.M)
+        while True:
+            # check to see if process has ended
+            poll = process.wait(os.WNOHANG)
+            if poll != None:
+                break
+            # print any new output
+            stdout = process.read()
             m = re_pct.search(stdout)
             if m:
                 pct = int(m.group(1))
                 self.__progress = pct / 100.0
                 logger.info("Wipe progress: %d%%" % (self.__progress*100))
-        stderr = process.stdout.read()
-        if process.returncode > 0:
+
+        stderr = process.readerr()
+        exit_status = process.wait()
+        if exit_status > 0:
             self.state = protocol.FAIL
             self.__fail_message = ("Failed while wiping. Return code: %d, Stderr was: %s" % 
-                                   (process.returncode, stderr))
+                                   (exit_status, stderr))
             logger.error(self.__fail_message)
             return
         self.__wipe_done = True
@@ -252,20 +262,29 @@ class Slave():
         return None
     
     def __badblocks_thread(self, command):
-        process = subprocess.Popen(str(command), stdout=subprocess.PIPE, 
-                                   stderr=subprocess.STDOUT, shell=True)
-        self.pids.append(process.pid)
-        while process.poll() is None:
-            stdout = process.stdout.read(16)
-            re_pct = re.compile(r"(\d\d)\.\d+%", re.M)
+        process = Process(command, shell=True)
+        self.processes.append(process)
+        re_pct = re.compile(r"(\d\d)\.\d+%", re.M)
+        while True:
+            # check to see if process has ended
+            poll = process.wait(os.WNOHANG)
+            if poll != None:
+                break
+            # print any new output
+            stdout = process.read()
             m = re_pct.search(stdout)
             if m:
                 pct = int(m.group(1))
                 self.__progress = pct / 100.0
                 logger.info("Badblocks progress: %d%%" % (self.__progress * 100))
-        if process.returncode > 0:
+
+        stderr = process.readerr()
+        exit_status = process.wait()
+        if exit_status > 0:
             self.state = protocol.FAIL
-            self.__fail_message = "Badblocks failed." 
+            self.__fail_message = ("Failed executing badblocks. Return code: %d, Stderr was: %s" % 
+                                   (exit_status, stderr))
+            logger.error(self.__fail_message)
             return
         self.__progress = 1.0
         self.__badblocks_done = True
@@ -289,11 +308,13 @@ class Slave():
 
     def __shell_exec_thread(self, command, shell_exec_id):
         logger.info("Shell execution of: %s" % command)
-        process = subprocess.Popen(command, stdout=subprocess.PIPE,
-                                   stderr=subprocess.PIPE,
-                                   shell=True,)
-        (stdout, stderr) = process.communicate()
-        self.shell_exec_results[shell_exec_id] = (stdout, stderr)
+        process = Process(command, shell=True)
+        # Initiate process
+        process.wait(os.WNOHANG)
+        self.processes.append(process)
+        # Blocking wait
+        process.wait()
+        self.shell_exec_results[shell_exec_id] = (process.read(), process.readerr())
         self.state = protocol.IDLE
     
     def shell_results(self, data):
@@ -331,13 +352,13 @@ class Slave():
             self.__progress = cnt / command_cnt
             logger.debug("Progress: %.2f" % self.__progress)
             try:
-                process = subprocess.Popen(command, stdout=subprocess.PIPE,
-                                           stderr=subprocess.PIPE,
-                                           shell=True,)
-                (stdout, stderr) = process.communicate()
-                self.scan_results[command] = (stdout, stderr)
+                process = Process(command, shell=True,)
+                process.wait(os.WNOHANG)
+                self.processes.append(process)
+                process.wait()
+                self.scan_results[command] = (process.read(), process.readerr())
             except OSError:
-                self.scan_results[command] = (stdout, "Command does not exist")
+                self.scan_results[command] = ("", "Command does not exist")
         
         self.state = protocol.IDLE
     
@@ -346,13 +367,8 @@ class Slave():
         self.__wipe_done = False
         self.__fail_message = ""
         self.__badblocks_done = False
-        for pid in self.pids:
-            try:
-                os.killpg(pid, signal.SIGTERM)
-            except OSError:
-                # Nothing important, probably process is already done
-                continue
-        self.state = protocol.IDLE
+        # Signal the main thread to kill everything... can only be done from there!
+        self.signal_mainthread_killall = True
             
     def reset(self, data):
         """Command asks the client to reset and terminate all running processes"""
@@ -383,6 +399,19 @@ _/_/_/_/    _/_/_/  _/    _/  _/_/_/            _/      _/_/_/_/  _/  _/
     slave = Slave()
     
     while True:
+        
+        # Monitor signal to terminate all processes
+        # (this can only be done from main thread)
+        if slave.signal_mainthread_killall: 
+            for process in slave.processes:
+                try:
+                    process.terminate()
+                except OSError:
+                    # Nothing important, probably process is already done
+                    continue
+            slave.state = protocol.IDLE
+            slave.signal_mainthread_killall = False
+            
         s = raw_input()
         if s == 'q':
             print "Goodbye!"

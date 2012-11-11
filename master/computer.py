@@ -375,6 +375,7 @@ class Computer():
         retries = 0
         while True:
             try:
+                s.settimeout (5.0)
                 reply = reply + s.recv (slave_settings.MAX_PACKET_SIZE)
                 self.state.update(State.CONNECTED)
                 reply = json.loads(reply)
@@ -388,7 +389,6 @@ class Computer():
                 if retries > 5:
                     s.close()
                     raise ConnectionException("Timeout while receiving reply")
-                time.sleep(1)
                 self.state.update(State.NOT_CONNECTED, "Connection timeout")
                 continue
             except socket.error:
