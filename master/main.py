@@ -128,7 +128,7 @@ class GtkMaster():
                         logger.debug("tftpd: %s" % stdout)
                 stderr = tftpd_process.stdout.read()
                 if tftpd_process.returncode > 0:
-                    error_msg = "Could not start TFTP server. Are you running the program with root privileges? Maybe you should do apt-get install tftpd-hpa.\n\nError was:" % stderr
+                    error_msg = "Could not start TFTP server. Are you running the program with root privileges? Maybe you should do apt-get install tftpd-hpa.\n\nError was: %s" % stderr
                     self.thread_failure_notify(error_msg)
                     logger.error(error_msg)
                 logger.debug("tftpd finished")
