@@ -123,7 +123,12 @@ class Slave():
                 logger.warning("Request exception: %s" % error_msg)
                 self.state = protocol.FAIL
                 self.send_reply(client_socket, str(error_msg))
+            except socket.timeout:
+                logger.error("Connection timeout sending reply.")
+            except socket.error, (__, errmsg):
+                logger.error("Error in socet while sending reply: %s." % str(errmsg))
             except:
+                # A non-socket exception... try to send back the exception
                 self.state = protocol.FAIL
                 self.send_reply(client_socket, "Error in slave: %s" % sys.exc_info()[0])
                 raise
@@ -377,6 +382,15 @@ class Slave():
         self.killall()
         return None
     
+def kill_slave_processes(slave):
+    for process in slave.processes:
+        try:
+            process.terminate()
+        except OSError:
+            # Nothing important, probably process is already done
+            continue
+        slave.processes.remove(process)
+
             
 if __name__ == "__main__":
     
@@ -403,20 +417,16 @@ _/_/_/_/    _/_/_/  _/    _/  _/_/_/            _/      _/_/_/_/  _/  _/
         # Monitor signal to terminate all processes
         # (this can only be done from main thread)
         if slave.signal_mainthread_killall: 
-            for process in slave.processes:
-                try:
-                    process.terminate()
-                except OSError:
-                    # Nothing important, probably process is already done
-                    continue
+            kill_slave_processes(slave)
             slave.state = protocol.IDLE
             slave.signal_mainthread_killall = False
             
         s = raw_input()
         if s == 'q':
-            print "Goodbye!"
-            slave.killall()
+            print "Cleaning up..."
+            kill_slave_processes(slave)
             slave.stop()
+            print "Finished. Bye!"
             exit(0)
         else:
             time.sleep(1)
