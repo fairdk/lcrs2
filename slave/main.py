@@ -234,6 +234,8 @@ class Slave():
                 pct = int(m.group(1))
                 self.__progress = pct / 100.0
                 logger.info("Wipe progress: %d%%" % (self.__progress*100))
+            # Wait another 2 seconds before polling
+            time.sleep(2.0)
 
         stderr = process.readerr()
         exit_status = process.wait()
@@ -282,6 +284,10 @@ class Slave():
                 pct = int(m.group(1))
                 self.__progress = pct / 100.0
                 logger.info("Badblocks progress: %d%%" % (self.__progress * 100))
+            else:
+                logger.debug("Could not understand badblocks output: %s" % stdout)
+            # Wait another 2 seconds before polling
+            time.sleep(2.0)
 
         stderr = process.readerr()
         exit_status = process.wait()
