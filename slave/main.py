@@ -224,8 +224,8 @@ class Slave():
         re_pct = re.compile(r"(\d+)%", re.M)
         while True:
             # check to see if process has ended
-            poll = process.wait(os.WNOHANG)
-            if poll != None:
+            poll_exitcode = process.wait(os.WNOHANG)
+            if poll_exitcode != None:
                 break
             # print any new output
             stdout = process.read()
@@ -238,11 +238,10 @@ class Slave():
             time.sleep(2.0)
 
         stderr = process.readerr()
-        exit_status = process.wait()
-        if exit_status > 0:
+        if poll_exitcode > 0:
             self.state = protocol.FAIL
             self.__fail_message = ("Failed while wiping. Return code: %d, Stderr was: %s" % 
-                                   (exit_status, stderr))
+                                   (poll_exitcode, stderr))
             logger.error(self.__fail_message)
             return
         self.__wipe_done = True
@@ -271,11 +270,11 @@ class Slave():
     def __badblocks_thread(self, command):
         process = Process(command, shell=True)
         self.processes.append(process)
-        re_pct = re.compile(r"(\d\d)\.\d+%", re.M)
+        re_pct = re.compile(r"(\d+)\.\d+%", re.M)
         while True:
             # check to see if process has ended
-            poll = process.wait(os.WNOHANG)
-            if poll != None:
+            poll_exitcode = process.wait(os.WNOHANG)
+            if poll_exitcode != None:
                 break
             # print any new output
             stdout = process.read()
@@ -290,11 +289,10 @@ class Slave():
             time.sleep(2.0)
 
         stderr = process.readerr()
-        exit_status = process.wait()
-        if exit_status > 0:
+        if poll_exitcode > 0:
             self.state = protocol.FAIL
             self.__fail_message = ("Failed executing badblocks. Return code: %d, Stderr was: %s" % 
-                                   (exit_status, stderr))
+                                   (poll_exitcode, stderr))
             logger.error(self.__fail_message)
             return
         self.__progress = 1.0

@@ -173,8 +173,8 @@ WIPE_METHODS = {
 #    "ATA Secure Erase": "wipe -z -v -l0 -p1 /dev/%(dev)s",
 }
 
-# Output badblocks in a file. If file is non-empty exit with non-zero return code
-BADBLOCKS = "badblocks -e 1 -c 1 -s -o /tmp/badblocks /dev/%(dev)s && if [ -s /tmp/badblocks ]; then exit 1; fi"
+# TODO: Output badblocks in a file to check later perhaps?
+BADBLOCKS = "badblocks -e 1 -s -o /tmp/badblocks /dev/%(dev)s"
 
 class Computer():
     """
