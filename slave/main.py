@@ -276,15 +276,16 @@ class Slave():
             poll_exitcode = process.wait(os.WNOHANG)
             if poll_exitcode != None:
                 break
-            # print any new output
-            stdout = process.read()
-            m = re_pct.search(stdout)
+            # Search stderr - yes, actually stderr is the pipe that badblocks
+            # uses :(
+            stderr = process.readerr()
+            m = re_pct.search(stderr)
             if m:
                 pct = int(m.group(1))
                 self.__progress = pct / 100.0
                 logger.info("Badblocks progress: %d%%" % (self.__progress * 100))
             else:
-                logger.debug("Could not understand badblocks output: %s" % stdout)
+                logger.debug("Could not understand badblocks output: %s" % stderr)
             # Wait another 2 seconds before polling
             time.sleep(2.0)
 
