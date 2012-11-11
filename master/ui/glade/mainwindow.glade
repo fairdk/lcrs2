@@ -867,7 +867,7 @@ which groups (tabs) you wish to report:</property>
                                           <object class="GtkLabel" id="label15">
                                             <property name="visible">True</property>
                                             <property name="can_focus">False</property>
-                                            <property name="label" translatable="yes">Refresh</property>
+                                            <property name="label" translatable="yes">Reset</property>
                                           </object>
                                           <packing>
                                             <property name="expand">True</property>

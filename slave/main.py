@@ -35,7 +35,7 @@ ch = logging.StreamHandler()
 formatter = logging.Formatter('%(levelname)s - %(message)s')
 ch.setFormatter(formatter)
 logger.addHandler(ch)
-logger.setLevel(logging.WARNING)
+logger.setLevel(logging.INFO)
 
 import settings
 import protocol
@@ -72,7 +72,7 @@ class Slave():
     def stop(self):
         self.__active = False
     
-    def listen(self, listen_port=None):
+    def listen(self, listen_port=settings.LISTEN_PORT):
         """
         Read messages from clients. If the client closes its
         connection, start from scratch.
@@ -80,40 +80,51 @@ class Slave():
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
         self.socket.settimeout(2)
-        self.socket.bind ( ('', listen_port if listen_port else settings.LISTEN_PORT) )
+        self.socket.bind ( ('', listen_port) )
         self.socket.listen(10)
-
+        
+        logger.info("Now listening on TCP port %d" % (listen_port))
+        
         while self.__active:
             try:
-                self.client, address = self.socket.accept()
-                logger.info("Received connection from %s." % str(address))
+                client_socket, address = self.socket.accept()
+                logger.debug("Received connection from %s." % str(address))
+                t = threading.Thread(target=self.__client_thread, args=(client_socket,))
+                t.setDaemon(True)
+                t.start()
             except socket.timeout:
                 continue
-            
-            while self.__active:
-                try:
-                    self.client.settimeout(settings.CLIENT_TIMEOUT)
-                    raw_data = self.client.recv(settings.MAX_PACKET_SIZE)
-                    break
-                except socket.timeout:
-                    logger.warning("Client timed out.")
-                    continue
-                except socket.error, (__, errmsg):
-                    logger.warning("Error in connection: %s." % str(errmsg))
-                    break
-            
-            if raw_data:
-                try:
-                    self.process_request(raw_data)
-                except RequestException, error_msg:
-                    logger.warning("Request exception: %s" % error_msg)
-                    self.state = protocol.FAIL
-                    self.send_reply(str(error_msg))
                     
-                self.client.close()
-            
         self.socket.close()
+    
+    def __client_thread(self, client_socket):
+        while self.__active:
+            try:
+                client_socket.settimeout(settings.CLIENT_TIMEOUT)
+                raw_data = client_socket.recv(settings.MAX_PACKET_SIZE)
+                break
+            except socket.timeout:
+                logger.warning("Client timed out.")
+                continue
+            except socket.error, (__, errmsg):
+                logger.warning("Error in connection: %s." % str(errmsg))
+                break
+        
+        if not self.__active:
+            client_socket.close()
+            return
 
+        if raw_data:
+            try:
+                data = self.process_request(raw_data)
+                self.send_reply(client_socket, data)
+            except RequestException, error_msg:
+                logger.warning("Request exception: %s" % error_msg)
+                self.state = protocol.FAIL
+                self.send_reply(client_socket, str(error_msg))
+            client_socket.close()
+        
+    
     def process_request(self, raw_data):
         """
         Process some JSON data received from the socket
@@ -145,9 +156,9 @@ class Slave():
         
         raise RequestException("Received unknown command ID: %s" % str(command))
         
-    def send_reply(self, data=None):
+    def send_reply(self, client_socket, data=None):
         try:
-            self.client.sendall(json.dumps([self.state, data]))
+            client_socket.sendall(json.dumps([self.state, data]))
         except socket.timeout:
             logger.warning("Could not send response. Socket timeout.")
         except socket.error, (__, e_str):
@@ -177,11 +188,11 @@ class Slave():
         
         self.scan_results = {}
         
-        self.send_reply(None)
-        
         t = threading.Thread(target=self.__scan_thread, args=(data,))
         t.setDaemon(True)
         t.start()
+        
+        return None
         
     def wipe(self, data):
         logger.info("Received WIPE command.")
@@ -195,7 +206,7 @@ class Slave():
         t.setDaemon(True)
         t.start()
 
-        self.send_reply(None)
+        return None
     
     def __wipe_thread(self, command):
         process = subprocess.Popen(str(command), bufsize=1, stdout=subprocess.PIPE, 
@@ -224,7 +235,7 @@ class Slave():
     def debug_mode(self, data):
         logger.setLevel(logging.DEBUG)
         logger.debug("Switched on debug mode")
-        self.send_reply(None)
+        return None
     
     def badblocks(self, data):
         logger.info("Received BADBLOCKS command.")
@@ -238,7 +249,7 @@ class Slave():
         t.setDaemon(True)
         t.start()
 
-        self.send_reply(None)
+        return None
     
     def __badblocks_thread(self, command):
         process = subprocess.Popen(str(command), stdout=subprocess.PIPE, 
@@ -273,7 +284,7 @@ class Slave():
         t.setDaemon(True)
         t.start()
         
-        self.send_reply(shell_exec_id)
+        return shell_exec_id
 
 
     def __shell_exec_thread(self, command, shell_exec_id):
@@ -293,23 +304,23 @@ class Slave():
         
         try:
             (stdin, stdout) = self.shell_exec_results[command_id]
-            self.send_reply((stdin, stdout))
+            return (stdin, stdout)
         except KeyError:
             raise RequestException("No such result id. Maybe command hasn't finished.")
         
     def status(self, data):
-        logger.info("Received STATUS command.")
-        self.send_reply({'progress': self.__progress,
-                         'badblocks_done': self.__badblocks_done,
-                         'wipe_done': self.__wipe_done,
-                         'fail_message': self.__fail_message})
+        logger.debug("Received STATUS command.")
+        return {'progress': self.__progress,
+                'badblocks_done': self.__badblocks_done,
+                'wipe_done': self.__wipe_done,
+                'fail_message': self.__fail_message}
     
     def hardware(self, data):
         logger.info("Received HARDWARE command.")
         if self.hardware:
-            self.send_reply(self.scan_results)
+            return self.scan_results
         else:
-            self.send_reply(None)
+            return None
     
     def __scan_thread(self, commands):
         # Execute a number of commands and return their output in the same order.
@@ -335,12 +346,12 @@ class Slave():
         self.__wipe_done = False
         self.__fail_message = ""
         self.__badblocks_done = False
-        try:
-            for pid in self.pids:
+        for pid in self.pids:
+            try:
                 os.killpg(pid, signal.SIGTERM)
-        except OSError:
-            # Nothing important, probably process is already done
-            pass
+            except OSError:
+                # Nothing important, probably process is already done
+                continue
         self.state = protocol.IDLE
             
     def reset(self, data):
@@ -348,7 +359,7 @@ class Slave():
         logger.info("Received RESET command.")
         self.state = protocol.RESET
         self.killall()
-        self.send_reply(None)
+        return None
     
             
 if __name__ == "__main__":

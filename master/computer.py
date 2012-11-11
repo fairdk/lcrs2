@@ -304,7 +304,7 @@ class Computer():
         self.state.update(State.SCANNING, "Scanning...")
         while not self.scanned:
             (state, data) = self.slave_state()
-            progress = data.get('progress', None) if hasattr(data, "get") else None
+            progress = data.get('progress', None) if type(data) == dict else None
             callback_progress(progress, state) if callback_progress else ()
             logger.debug("Assuming progress: %s" % progress)
             if state == protocol.FAIL:
@@ -384,9 +384,10 @@ class Computer():
             except ValueError:
                 continue
             except socket.timeout:
-                s.close()
                 retries += 1
-                if retries > 5: raise ConnectionException("Timeout while receiving reply")
+                if retries > 5:
+                    s.close()
+                    raise ConnectionException("Timeout while receiving reply")
                 time.sleep(1)
                 self.state.update(State.NOT_CONNECTED, "Connection timeout")
                 continue
@@ -528,7 +529,7 @@ class Computer():
             
             state, data = self.slave_state()
             
-            if hasattr(data, "get") and data.get('badblocks_done', False):
+            if type(data) == dict and data.get('badblocks_done', False):
                 self.state.update_progress(1.0)
                 self.hw_info["Hard drives"][dev_name]["Badblocks"] = False
                 break
@@ -539,7 +540,7 @@ class Computer():
                 raise ResponseFailException("Badblocks detected (/dev/%s)!" % dev_name)
             
             elif state == protocol.BUSY:
-                progress = data.get('progress', None) if hasattr(data, "get") else None
+                progress = data.get('progress', None) if type(data) == dict else None
                 self.state.update_progress(progress)
                 logger.debug("Received data assuming to be progress while doing badblocks and BUSY: %s" % str(data))
             
@@ -574,7 +575,7 @@ class Computer():
             
             state, data = self.slave_state()
 
-            if hasattr(data, "get") and data.get('wipe_done', False):
+            if type(data) == dict and data.get('wipe_done', False):
                 self.state.update_progress(1.0)
                 logger.info("Finished: Computer ID %s" % str(self.id))
                 break
@@ -592,7 +593,7 @@ class Computer():
                 raise ResponseFailException(err_msg)
 
             elif state == protocol.BUSY:
-                progress = data.get('progress', None) if hasattr(data, "get") else None
+                progress = data.get('progress', None) if type(data) == dict else None
                 self.state.update_progress(progress)
                 logger.debug("Received data assuming to be progress while doing wipe and BUSY: %s" % str(data))
             
