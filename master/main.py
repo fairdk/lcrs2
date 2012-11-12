@@ -155,12 +155,10 @@ class GtkMaster():
         dialog.show()
 
     def start_main_window(self):
-        self.appWindow = BaseMainWindow()
+        self.appWindow = BaseMainWindow(master_instance=self)
         self.groups = []
-
-        self.addGroup("New/busy")
-        self.addGroup("Wiped")
-        self.addGroup("Failed")
+        
+        self.addGroup("Default group")
         
         #newmaster = Computer("Test", "127.0.0.1", "00:00:00:00:00")
         #self.groups[0].addComputer(newmaster)

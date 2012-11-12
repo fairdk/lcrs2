@@ -54,6 +54,7 @@ class MainWindow (object):
         self.plugin_hooks = {}
         self.plugins = []
         self.alive = True
+        self.master_instance = kwargs.get('master_instance', None)
         
         for plugin_class, options in config_master.ui_plugins:
             if not options.get('disabled', False):
@@ -136,6 +137,8 @@ class BaseMainWindow(MainWindow):
         
         self.glade.connect_signals(self)
         
+        self.getWidget('buttonAddGroup').connect('clicked', self.add_group)
+        
         self.win = win
         self.win.show()
         
@@ -196,6 +199,8 @@ class BaseMainWindow(MainWindow):
         # Update window title
         if no_busy_computers > 0:
             self.win.set_title('LCRS (busy)')
+        elif no_computers == 0:
+            self.win.set_title('LCRS')
         elif len(finished_computers) == no_computers:
             self.win.set_title('LCRS (everything complete)')
         else:
@@ -209,6 +214,13 @@ class BaseMainWindow(MainWindow):
     
     def update_overall_status(self):
         gobject.idle_add(self._update_overall_status)
+    
+    def add_group(self, *args):
+        gobject.idle_add(self._add_group)
+    
+    def _add_group(self):
+        name = self.getWidget("entryGroupname").get_text()
+        self.master_instance.addGroup(name)
     
     def _appendLog(self, logMsg, *args, **kwargs):
         super(BaseMainWindow, self)._appendLog(logMsg, *args, **kwargs)
