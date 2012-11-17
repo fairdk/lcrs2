@@ -17,12 +17,14 @@
 # along with LCRS.  If not, see <http://www.gnu.org/licenses/>.
 
 import gtk, gobject
+import os
 import time
 
 from computerpanel import ComputerPanel
 from reportdialog import ReportDialog
 from getid import GetID
-from master.plugins import CallbackFailed
+from lcrs.master.plugins import CallbackFailed
+from lcrs.master import config_master
 
 COLUMN_LENGTH = 10
 (COLUMN_STATUS_ICON, COLUMN_ICON_SIZE, COLUMN_ID, COLUMN_ID_FONT,
@@ -39,7 +41,10 @@ class GroupPage():
         self.mainwindow = mainwindow
         
         glade = gtk.Builder()
-        glade.add_objects_from_file('ui/glade/mainwindow.glade', ['groupPage'])
+        glade.add_objects_from_file(
+            os.path.join(config_master.MASTER_PATH, 'ui/glade/mainwindow.glade'),
+            ['groupPage']
+        )
         
         self.glade = glade
         self.glade.connect_signals(self.mainwindow)

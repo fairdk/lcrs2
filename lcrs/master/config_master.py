@@ -27,10 +27,7 @@ TFTP_COMMAND = "in.tftpd -a %(ip)s -s -l -v -v -v -L %(path)s"
 MASTER_PATH = os.path.abspath(__file__)
 MASTER_PATH = os.path.split(MASTER_PATH)[0]
 MASTER_PATH = os.path.abspath(MASTER_PATH)
-
-# TODO: Is this really necessary??
-sys.path.append(".")
-sys.path.append(MASTER_PATH)
+DEFAULT_CONFIG_FILE = os.path.join(MASTER_PATH, "config_master_default.cfg")
 
 ui_plugins = [
     #(ExamplePlugin, {'disabled': False,}),
@@ -38,8 +35,6 @@ ui_plugins = [
     #(FairRegisterPlugin, {'disabled': False,}),
     #(FairLoginPlugin, {'disabled': False,}),
 ]
-
-DEFAULT_CONFIG_FILE = os.path.join(MASTER_PATH, "config_master_default.cfg")
 
 CONFIG_FILE = os.path.expanduser('~/.coresu.cfg')
 
@@ -61,7 +56,8 @@ def load_plugins():
     import inspect, pkgutil
     for (__, module_name, __) in list(pkgutil.iter_modules(plugins.__path__)):
         
-        module = __import__("%s.%s" % (plugins.__name__, module_name)).__dict__[module_name]
+        module = __import__(plugins.__name__+"."+module_name, 
+                            fromlist=plugins.__name__.split(".")+[module_name])
         for cls in dir(module):
             cls=getattr(module,cls)
             if (inspect.isclass(cls)

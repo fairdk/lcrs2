@@ -17,10 +17,12 @@
 
 import httplib, urllib
 import gtk
+import os
 
 import settings
 
-from plugins import BasePlugin #@UnresolvedImport
+from lcrs.master.plugins import BasePlugin #@UnresolvedImport
+from lcrs.master import config_master
 
 class FairLoginPlugin(BasePlugin):
 
@@ -50,7 +52,9 @@ class FairLoginPlugin(BasePlugin):
             self.inserted = True
 
         glade = gtk.Builder()
-        glade.add_from_file('plugins/fair/glade/login.glade')
+        glade.add_from_file(
+            os.path.join(config_master.MASTER_PATH, 'plugins/fair/glade/login.glade')
+        )
         
         glade.get_object('buttonCancel').connect('clicked', self.close)
         glade.get_object('buttonLogin').connect('clicked', self.login)
@@ -93,7 +97,7 @@ class FairLoginPlugin(BasePlugin):
             if r1.status == 200:
                 self.mainwindow_instance.fair_username = username
                 self.mainwindow_instance.fair_password = password
-                from master.ui.mainwindow import LogMsg
+                from lcrs.master.ui.mainwindow import LogMsg
                 self.mainwindow_instance.appendLog(LogMsg("FAIR: Logged in as %s" % username))
                 self.win.destroy()
                 #def on_close(dialog, *args):

@@ -24,18 +24,9 @@ import argparse
 gtk.gdk.threads_init() #@UndefinedVariable
 
 import gobject
-import sys
 import os
 import subprocess
 import re
-
-MASTER_PATH = os.path.abspath(__file__)
-MASTER_PATH = os.path.split(MASTER_PATH)[0]
-MASTER_PATH = os.path.join(MASTER_PATH, "..")
-MASTER_PATH = os.path.abspath(MASTER_PATH)
-
-sys.path.append(".")
-sys.path.append(MASTER_PATH)
 
 import logging
 
@@ -44,8 +35,8 @@ logger = logging.getLogger('lcrs')
 import socket
 import threading
 
-from ui.mainwindow import BaseMainWindow
-import config_master
+from lcrs.master.ui.mainwindow import BaseMainWindow
+from lcrs.master import config_master
 
 from group import Group
 from computer import Computer

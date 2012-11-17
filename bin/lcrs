@@ -1,0 +1,3 @@
+#!/bin/sh
+
+gksudo -k "python -m lcrs.master.main"

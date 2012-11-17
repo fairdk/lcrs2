@@ -17,7 +17,7 @@
 
 import gtk, gobject
 
-import computer
+from lcrs.master import computer
 
 COLUMN_LENGTH = 2
 (COLUMN_NAME, COLUMN_VALUE) = range(COLUMN_LENGTH)

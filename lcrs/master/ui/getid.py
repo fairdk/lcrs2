@@ -16,6 +16,9 @@
 # along with LCRS.  If not, see <http://www.gnu.org/licenses/>.
 
 import gtk
+import os
+
+from lcrs.master import config_master
 
 class GetID():
     
@@ -24,7 +27,10 @@ class GetID():
         self.grouppage = grouppage
         
         glade = gtk.Builder()
-        glade.add_objects_from_file('ui/glade/get_id.glade', ['getid'])
+        glade.add_objects_from_file(
+            os.path.join(config_master.MASTER_PATH, 'ui/glade/get_id.glade'),
+            ['getid']
+        )
         self.glade = glade
         
         self.glade.get_object('buttonOK').connect('button-press-event', self.on_ok)

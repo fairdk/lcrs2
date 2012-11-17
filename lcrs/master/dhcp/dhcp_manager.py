@@ -23,8 +23,9 @@ import IN
 
 from pydhcplib import dhcp_packet
 from pydhcplib import dhcp_network
-from dhcp.utils import octetsAsInts
-from dhcp.utils import fillFixedBuffer
+
+from utils import octetsAsInts
+from utils import fillFixedBuffer
 
 """
     This module deals with IP's represented as either string: '10.20.30.40' or lists of ints: [10,20,30,40]

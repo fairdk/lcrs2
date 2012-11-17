@@ -15,13 +15,16 @@
 # along with LCRS.  If not, see <http://www.gnu.org/licenses/>.
 
 import gtk, gobject
+import os
 
-import config_master
+from lcrs.master import config_master
 
 class PreferencesWindow:
     def __init__(self):
         self.uiApp = gtk.Builder()
-        self.uiApp.add_from_file('ui/glade/preferences.glade')
+        self.uiApp.add_from_file(
+            os.path.join(config_master.MASTER_PATH, 'ui/glade/preferences.glade')
+        )
         self.uiApp.connect_signals (self)
 
         self.window = self.uiApp.get_object ('preferences-window')

@@ -25,8 +25,8 @@ import sys
 import simplejson as json
 from datetime import datetime
 
-from slave import protocol
-from slave import settings as slave_settings
+from lcrs.slave import protocol
+from lcrs.slave import settings as slave_settings
 
 import re
 import random

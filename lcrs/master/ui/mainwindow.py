@@ -19,9 +19,10 @@
 
 import gobject, gtk
 from datetime import datetime
+import os
 
-from ui.grouppage import GroupPage
-import config_master
+from lcrs.master.ui.grouppage import GroupPage
+from lcrs.master import config_master
 import logging
 logger = logging.getLogger('lcrs')
 
@@ -123,7 +124,9 @@ class BaseMainWindow(MainWindow):
         super(BaseMainWindow, self).__init__(*args, **kwargs)
     
         self.glade = gtk.Builder()
-        self.glade.add_from_file('ui/glade/mainwindow.glade')
+        self.glade.add_from_file(
+            os.path.join(config_master.MASTER_PATH, 'ui/glade/mainwindow.glade')
+        )
 
         self.groupNotebook = self.getWidget('groupNotebook')
         

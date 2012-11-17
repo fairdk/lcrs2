@@ -25,7 +25,7 @@ import shlex
 URL_REGISTER = "/materials/barcode/"
 URL_REGISTER_WEBSERVICE = "/materials/coresu/register/webservice/"
 
-from plugins import BasePlugin #@UnresolvedImport
+from lcrs.master.plugins import BasePlugin #@UnresolvedImport
 
 class FairRegisterPlugin(BasePlugin):
 

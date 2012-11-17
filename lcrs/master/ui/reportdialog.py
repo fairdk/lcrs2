@@ -21,12 +21,15 @@ from datetime import datetime
 
 import os
 
-import reports
+from lcrs.master import reports, config_master
 
 class ReportDialog:
     def __init__(self, group_clicked, all_groups):
         self.glade = gtk.Builder()
-        self.glade.add_from_file('ui/glade/mainwindow.glade')
+        self.glade.add_from_file(
+            os.path.join(config_master.MASTER_PATH, 'ui/glade/mainwindow.glade')
+        )
+    
         
         self.window = self.glade.get_object ('dialogReport')
         self.window.connect("delete-event", self.on_delete_event)
@@ -50,7 +53,7 @@ class ReportDialog:
         """Use this object as a dictionary of widgets"""
         return self.glade.get_object(key)
 
-    def quit(self):
+    def quit(self): #@ReservedAssignment
         self.window.destroy()
     
     def on_change_name(self, *args):
