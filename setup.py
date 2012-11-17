@@ -1,5 +1,20 @@
 import os
 from setuptools import setup, find_packages
+from distutils.command.install import install
+
+class lcrs_install(install):
+
+    def run(self):
+        install.run(self)
+        
+        print "Creating desktop shortcuts..."
+        os.system('xdg-icon-resource install --size 16 data/icon/16/lcrs-main.png')
+        os.system('xdg-icon-resource install --size 24 data/icon/24/lcrs-main.png')
+        os.system('xdg-icon-resource install --size 32 data/icon/32/lcrs-main.png')
+        os.system('xdg-icon-resource install --size 48 data/icon/48/lcrs-main.png')
+        os.system('xdg-icon-resource install --size 128 data/icon/128/lcrs-main.png')
+        os.system('xdg-desktop-menu install data/lcrs-master.desktop')
+        print "All done. Start LCRS from your application menu or run 'lcrs'."
 
 def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
@@ -36,6 +51,8 @@ setup(
     url = "http://code.google.com/p/lcrs/",   # project home page, if any
 
     # could also include long_description, download_url, classifiers, etc.
+    cmdclass={'install': lcrs_install}
+
 )
 
 

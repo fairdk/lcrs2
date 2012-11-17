@@ -6,6 +6,12 @@ report any problems or contribute with code on our website:
 
 http://lcrs.fairdanmark.dk
 
+##############
+# INSTALLING #
+##############
+
+sudo python setup.py install
+
 ###########
 # RUNNING #
 ###########
@@ -20,9 +26,9 @@ The master is the one you should run on the computer controlling and
 monitoring all the computers you wish to re-use.
 
 1) Check that you have installed the required dependencies.
-2) To run: cd lcrs/master && sudo python main.py
-3) To debug: cd lcrs/master && sudo python main.py --debug
-
+2) Run the command "lcrs"
+3) Check the network preferences and make sure that it fits your own setup.
+4) Close and start again if you make changes to the settings.
 
 ###############
 # CONFIGURING #
