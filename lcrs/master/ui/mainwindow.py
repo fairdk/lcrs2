@@ -54,11 +54,12 @@ class MainWindow (object):
         self.plugin_hooks = {}
         self.plugins = []
         self.alive = True
-        self.master_instance = kwargs.get('master_instance', None)
+        self.master_instance = kwargs['master_instance']
+        self.config = self.master_instance.get_config()
         
         for plugin_class, options in config_master.ui_plugins:
             if not options.get('disabled', False):
-                p = plugin_class(self)
+                p = plugin_class(self, self.config)
                 self.plugins.append(p)
                 p.activate()
                 logger.debug("activating %s" % plugin_class.name)

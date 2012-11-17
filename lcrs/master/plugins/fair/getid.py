@@ -27,8 +27,9 @@ class FairIDPlugin(BasePlugin):
     name = "FAIR ID plugin"
     description = "Gets IDs from the database and returns their full title to be displayed in the UI."
 
-    def __init__(self, mainwindow_instance):
+    def __init__(self, mainwindow_instance, config):
         self.mainwindow_instance = mainwindow_instance
+        self.config = config
     
     def activate(self):
         self.mainwindow_instance.plugin_subscribe('on-set-id', self.on_set_id)

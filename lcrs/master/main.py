@@ -163,7 +163,9 @@ class GtkMaster():
         #newmaster = Computer("Test", "127.0.0.1", "00:00:00:00:00")
         #self.groups[0].addComputer(newmaster)
         #self.appWindow.appendComputer(newmaster, self.groups[0])
-
+    
+    def get_config(self):
+        return config_master
 
     def get_dhcp_address (self, hwAddr):
         

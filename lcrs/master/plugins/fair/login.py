@@ -28,8 +28,9 @@ class FairLoginPlugin(BasePlugin):
     description = ("Sends the scanned result in raw JSON to the FAIR server where"
                    " it can then be stored. The interface is done with GtkMozEmbed")
 
-    def __init__(self, mainwindow_instance):
+    def __init__(self, mainwindow_instance, config):
         self.mainwindow_instance = mainwindow_instance
+        self.config = config
         self.mainwindow_instance.fair_username = ""
         self.mainwindow_instance.fair_password = ""
         self.inserted = False

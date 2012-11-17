@@ -246,6 +246,7 @@ class Slave():
             return
         self.__wipe_done = True
         self.__progress = 1.0
+        logger.info("Wipe finished.")
         self.state = protocol.IDLE
     
     def debug_mode(self, data):
@@ -297,6 +298,7 @@ class Slave():
             logger.error(self.__fail_message)
             return
         self.__progress = 1.0
+        logger.info("Badblocks finished.")
         self.__badblocks_done = True
         self.state = protocol.IDLE
 

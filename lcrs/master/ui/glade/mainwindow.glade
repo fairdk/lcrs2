@@ -977,6 +977,7 @@ which groups (tabs) you wish to report:</property>
                                         <property name="can_focus">True</property>
                                         <property name="receives_default">False</property>
                                         <property name="use_action_appearance">False</property>
+                                        <property name="active">True</property>
                                         <property name="draw_indicator">True</property>
                                       </object>
                                       <packing>

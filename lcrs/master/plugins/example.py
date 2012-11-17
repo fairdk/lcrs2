@@ -24,8 +24,11 @@ class ExamplePlugin(BasePlugin):
     name = "Example plugin"
     description = "This is an example plugin"
     
-    def __init__(self, mainwindow_instance):
+    def __init__(self, mainwindow_instance, config):
+        # an instance of the main window
         self.mainwindow_instance = mainwindow_instance
+        # an instance of config_master
+        self.config = config
     
     def activate(self):
         print "I was activated!"

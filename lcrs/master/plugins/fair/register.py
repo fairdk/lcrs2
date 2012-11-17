@@ -32,8 +32,9 @@ class FairRegisterPlugin(BasePlugin):
     name = "FAIR computer registration"
     description = ("Posts data to fairdanmark.dk and uses xdg-open to load a browser with a window to verify the computer.")
 
-    def __init__(self, mainwindow_instance):
+    def __init__(self, mainwindow_instance, config):
         self.mainwindow_instance = mainwindow_instance
+        self.config = config
     
     def on_delete_event(self):
         pass
@@ -82,7 +83,10 @@ class FairRegisterPlugin(BasePlugin):
         grouppage.update_row(computer)
         self.on_auto_submit(computer)
         
-        url = "https://%s%s%s" % (settings.FAIR_SERVER, URL_REGISTER, computer.id)
+        if getattr(settings, 'USE_HTTPS', True):
+            url = "https://%s%s%s" % (settings.FAIR_SERVER, URL_REGISTER, computer.id)
+        else:
+            url = "http://%s%s%s" % (settings.FAIR_SERVER, URL_REGISTER, computer.id)
         username = os.getenv("SUDO_USER")
         
         if username:

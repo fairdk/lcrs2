@@ -72,9 +72,6 @@ class GroupPage():
         
         glade.get_object('toolbuttonReport').connect('clicked', self.on_save_report)
         glade.get_object('toolbuttonQuit').connect('clicked', self.on_quit)
-        
-        self.treeview.drag_source_unset()
-        self.treeview.drag_dest_unset()
 
         # Status icon column
         cell = gtk.CellRendererPixbuf()
@@ -124,7 +121,10 @@ class GroupPage():
                                        gobject.TYPE_PYOBJECT,# Computer object
                                       )
         self.treeview.set_model(self.liststore)
-        self.treeview.set_reorderable(False)
+        
+        #self.treeview.drag_source_unset()
+        #self.treeview.drag_dest_unset()
+        #self.treeview.set_reorderable(True)
         
         self.current_computer = None
         
