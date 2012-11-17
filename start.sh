@@ -1,4 +1,4 @@
 #!/bin/bash
 
 cd lcrs/master
-gksudo -k ./main.py
+gksudo -k python main.py
