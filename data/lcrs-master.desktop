@@ -2,7 +2,7 @@
 Name=LCRS
 Comment=Large-scale Computer Reuse Suite
 Exec=lcrs
-Icon=lcrs-main
+Icon=lcrs-lcrs
 Terminal=false
 Type=Application
 StartupNotify=true

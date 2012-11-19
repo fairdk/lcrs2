@@ -8,11 +8,12 @@ class lcrs_install(install):
         install.run(self)
         
         print "Creating desktop shortcuts..."
-        os.system('xdg-icon-resource install --size 16 data/icon/16/lcrs-main.png')
-        os.system('xdg-icon-resource install --size 24 data/icon/24/lcrs-main.png')
-        os.system('xdg-icon-resource install --size 32 data/icon/32/lcrs-main.png')
-        os.system('xdg-icon-resource install --size 48 data/icon/48/lcrs-main.png')
-        os.system('xdg-icon-resource install --size 128 data/icon/128/lcrs-main.png')
+        os.system('xdg-icon-resource install --noupdate --size 16 data/icon/16/lcrs-lcrs.png')
+        os.system('xdg-icon-resource install --noupdate --size 22 data/icon/22/lcrs-lcrs.png')
+        os.system('xdg-icon-resource install --noupdate --size 32 data/icon/32/lcrs-lcrs.png')
+        os.system('xdg-icon-resource install --noupdate --size 48 data/icon/48/lcrs-lcrs.png')
+        os.system('xdg-icon-resource install --noupdate --size 64 data/icon/64/lcrs-lcrs.png')
+        os.system('xdg-icon-resource install --size 128 data/icon/128/lcrs-lcrs.png')
         os.system('xdg-desktop-menu install data/lcrs-master.desktop')
         print "All done. Start LCRS from your application menu or run 'lcrs'."
 
@@ -32,7 +33,6 @@ setup(
     zip_safe = False,
     package_data = {
         # If any package contains *.txt or *.rst files, include them:
-        '': ['*.txt', '*.rst', '*.glade', '*.png'],
         'lcrs.master': ['pxe-root/*'],
         'lcrs.master': ['pxe-root/*/*'],
         'lcrs.master': ['pxe-root/*/*/*'],
@@ -41,7 +41,7 @@ setup(
         'lcrs.master': ['*html', '*cfg'],
         'lcrs.master.plugins.fair': ['*html', 'glade/*'],
     },
-
+    exclude_package_data = {'': ['buildroot']},
     # metadata for upload to PyPI
     author = "Benjamin Bach",
     author_email = "benjamin@fairdanmark.dk",
