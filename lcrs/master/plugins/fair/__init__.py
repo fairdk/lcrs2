@@ -22,7 +22,6 @@ URL_REGISTER_WEBSERVICE = "/materials/coresu/register/webservice/"
 import gtk
 import httplib, urllib, hashlib
 import subprocess
-import settings
 import os
 import simplejson as json
 import shlex
@@ -136,7 +135,7 @@ class FairIDPlugin(BasePlugin):
             params = urllib.urlencode({'u': username, 'p': password, 'c': checksum})
             headers = {"Content-type": "application/x-www-form-urlencoded",
                        "Accept": "text/plain"}
-            if getattr(settings, 'USE_HTTPS', True):
+            if self.get_config("use_https"):
                 conn = httplib.HTTPSConnection(self.get_config("fair_server"))
             else:
                 conn = httplib.HTTPConnection(self.get_config("fair_server"))
@@ -183,7 +182,7 @@ class FairIDPlugin(BasePlugin):
     
     def on_auto_submit(self, computer):
         m = hashlib.md5()
-        m.update(settings.FAIR_SECRET_KEY)
+        m.update(self.get_config("fair_key"))
         m.update(self.mainwindow_instance.fair_username)
         m.update(self.mainwindow_instance.fair_password)
         checksum = m.hexdigest()
@@ -202,10 +201,10 @@ class FairIDPlugin(BasePlugin):
                                    })
         headers = {"Content-type": "application/x-www-form-urlencoded",
                    "Accept": "text/plain"}
-        if getattr(settings, 'USE_HTTPS', True):
-            conn = httplib.HTTPSConnection(settings.FAIR_SERVER)
+        if self.get_config("use_https"):
+            conn = httplib.HTTPSConnection(self.get_config("fair_server"))
         else:
-            conn = httplib.HTTPConnection(settings.FAIR_SERVER)
+            conn = httplib.HTTPConnection(self.get_config("fair_server"))
         conn.request("POST", URL_REGISTER_WEBSERVICE, params, headers)
         response = conn.getresponse()
         data = response.read()
