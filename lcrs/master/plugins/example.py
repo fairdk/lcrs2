@@ -21,14 +21,14 @@ from lcrs.master.plugins import BasePlugin #@UnresolvedImport
 
 class ExamplePlugin(BasePlugin):
     
+    plugin_id = "example"
     name = "Example plugin"
     description = "This is an example plugin"
     
-    def __init__(self, mainwindow_instance, config):
-        # an instance of the main window
-        self.mainwindow_instance = mainwindow_instance
-        # an instance of config_master
-        self.config = config
+    # This is a template for your configuration. Please ONLY use lower-case
+    # keys do to the nature of the config file format.
+    # To get an actual configuration user config_maser.ui_plugins
+    config = {'example_key': ('This is an example', 'config value here')}
     
     def activate(self):
         print "I was activated!"

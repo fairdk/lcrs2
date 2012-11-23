@@ -18,7 +18,6 @@
 # along with LCRS.  If not, see <http://www.gnu.org/licenses/>.
 
 import gobject, gtk
-from datetime import datetime
 import os
 
 from lcrs.master.ui.grouppage import GroupPage
@@ -29,26 +28,13 @@ logger = logging.getLogger('lcrs')
 # should be replaced with something from logging module
 LOG_ERR, LOG_WARNING, LOG_INFO = range(3)
 
-class LogMsg:
-    def __init__(self, msg, log_type=LOG_INFO, ts=None):
-        if not ts:
-            self.ts = datetime.now()
-        else:
-            self.ts = ts        
-        self.msg = msg
-        self.log_type = log_type
-
-class MainWindow (object):
+class MainWindow():
     """
-    Main class for application window.  No widgets handled by this class -- only base
-    data structures. Please see below implementation.
-    
-    Any public method should be listed here.
-    
+    Main class for application window.
+
     REMEMBER THREAD SAFETY!!
     """
     def __init__(self, *args, **kwargs):
-
         self.groups = {}
         self.computers = {}
         self.log = []
@@ -58,71 +44,13 @@ class MainWindow (object):
         self.master_instance = kwargs['master_instance']
         self.config = self.master_instance.get_config()
         
-        for plugin_class, options in config_master.ui_plugins:
+        for plugin_class, options in config_master.ui_plugins.items():
             if not options.get('disabled', False):
                 p = plugin_class(self, self.config)
                 self.plugins.append(p)
                 p.activate()
                 logger.debug("activating %s" % plugin_class.name)
-
-    def plugin_subscribe(self, hook_id, callback):
-        old_list = self.plugin_hooks.get(hook_id, [])
-        old_list.append(callback)
-        self.plugin_hooks[hook_id] = old_list
-
-    def _appendLog(self, logMsg):
-        self.log.append(logMsg)
-    def appendLog(self, logMsg):
-        gobject.idle_add(self._appendLog, logMsg)
-
-    def _appendGroup (self, group):
-        """
-        Adds a new group to the UI.
-        """
-        assert not group in self.groups, "Group already added."
-        self.appendLog(LogMsg("Appending group '%s'" % group.getName()))
-
-    def appendGroup(self, group):
-        gobject.idle_add(self._appendGroup, group)
-
-    def _removeGroup (self, group):
-        """
-        Removes a group and destroys the group widget.
-        """
-        pass
-
-    def removeGroup(self, group):
-        gobject.idle_add(self._removeGroup, (group,))
-
-    def _appendComputer (self, computer, group=None):
-        """
-            Append a table row to the model object and a page to the notebook.
-            The page is GtkBuilder'ed from a Glade file.
-        """
-        self.appendLog(LogMsg("Adding computer..."))
-
-    def appendComputer(self, computer, group=None):
-        gobject.idle_add(self._appendComputer, computer, group)
-        gobject.idle_add(self.alert_plugins, 'on-add-computer')
-
-    def alert_plugins(self, event, *args):
-        """We only return a single value, even if there are more than
-           One plugin. Anything else seems overkill.
-        """
-        return_value = None
-        for plugin_func in self.plugin_hooks.get(event, []):
-            return_value = plugin_func(*args)
-        return return_value
-    
-
-
-class BaseMainWindow(MainWindow):
-    """
-    Base implementation of ApplicationWindow
-    """
-    def __init__(self, *args, **kwargs):
-        super(BaseMainWindow, self).__init__(*args, **kwargs)
-    
+        
         self.glade = gtk.Builder()
         self.glade.add_from_file(
             os.path.join(config_master.MASTER_PATH, 'ui/glade/mainwindow.glade')
@@ -148,9 +76,21 @@ class BaseMainWindow(MainWindow):
         
         self.update_overall_status()
 
-        self.appendLog(LogMsg("Main window initialized..."))
-
         self.alert_plugins('on-mainwindow-ready')
+    
+    def plugin_subscribe(self, hook_id, callback):
+        old_list = self.plugin_hooks.get(hook_id, [])
+        old_list.append(callback)
+        self.plugin_hooks[hook_id] = old_list
+
+    def alert_plugins(self, event, *args):
+        """We only return a single value, even if there are more than
+           One plugin. Anything else seems overkill.
+        """
+        return_value = None
+        for plugin_func in self.plugin_hooks.get(event, []):
+            return_value = plugin_func(*args)
+        return return_value
     
     def show(self):
         self.win.show()
@@ -210,44 +150,49 @@ class BaseMainWindow(MainWindow):
         else:
             self.win.set_title('LCRS (inactive)')
         
-        # Update status sidebar
-        self.getWidget('labelTotalComputers').set_text(str(no_computers))
-        self.getWidget('labelActiveComputers').set_text(str(len(busy_computers)))
-        self.getWidget('labelFinishedComputers').set_text(str(len(finished_computers)))
+        progress_label = "Total computers: %d / Busy: %d" % (no_computers, no_busy_computers)
+
+        self.getWidget("labelProgressbarTotal").set_text(progress_label)
         self.getWidget('progressbarTotal').set_fraction(total_progress)
     
     def update_overall_status(self):
         gobject.idle_add(self._update_overall_status)
     
-    def add_group(self, *args):
-        gobject.idle_add(self._add_group)
+    def add_group(self):
+        def do_add_group():
+            name = self.getWidget("entryGroupname").get_text()
+            self.master_instance.addGroup(name)
+        gobject.idle_add(do_add_group)
     
-    def _add_group(self):
-        name = self.getWidget("entryGroupname").get_text()
-        self.master_instance.addGroup(name)
+    def appendGroup(self, group):
+        def do_append_group(group):
+            """
+            Adds a new group to the UI.
+            """
+            assert not group in self.groups, "Group already added."
+            groupPage = GroupPage(group, self)
+            self.groupNotebook.insert_page(groupPage.getPageWidget(), groupPage.getLabelWidget(), len(self.groups))
+            self.groupNotebook.prev_page()
+            self.groups[group] = groupPage
+            self.update_overall_status()
+        gobject.idle_add(do_append_group, group)
+
+    def appendComputer(self, computer, group=None):
+        def do_append_computer(computer, group):
+            """
+                Append a table row to the model object and a page to the notebook.
+                The page is GtkBuilder'ed from a Glade file.
+            """
+            self.update_overall_status()
+            if not group:
+                group = self.groups.keys()[0]
+            self.groups[group].addComputer(computer)
+            self.update_overall_status()
     
-    def _appendLog(self, logMsg, *args, **kwargs):
-        super(BaseMainWindow, self)._appendLog(logMsg, *args, **kwargs)
-        buf = self.getWidget('textbufferLog')
-        buf.insert(buf.get_end_iter(), logMsg.msg + "\n")
+        gobject.idle_add(do_append_computer, computer, group)
+        gobject.idle_add(self.alert_plugins, 'on-add-computer')
 
-    def _appendGroup(self, group, *args, **kwargs):
-        super(BaseMainWindow, self)._appendGroup(group, *args, **kwargs)        
-        groupPage = GroupPage(group, self)
-        self.groupNotebook.insert_page(groupPage.getPageWidget(), groupPage.getLabelWidget(), len(self.groups))
-        self.groupNotebook.prev_page()
-        self.groups[group] = groupPage
-        self.update_overall_status()
 
-    def _appendComputer (self, computer, group=None, **kwargs):
-        super(BaseMainWindow, self)._appendComputer(computer, group, **kwargs)
-        
-        self.update_overall_status()
-        if not group:
-            group = self.groups.keys()[0]
-        self.groups[group].addComputer(computer)
-        self.update_overall_status()
-        
     def open_preferences(self, *args):
         from preferenceswindow import PreferencesWindow
         _ = PreferencesWindow()

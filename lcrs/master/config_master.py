@@ -15,7 +15,7 @@
 # along with LCRS.  If not, see <http://www.gnu.org/licenses/>.
 
 import ConfigParser
-import os, sys
+import os, sys, pwd
 
 import logging
 logger = logging.getLogger('lcrs')
@@ -29,14 +29,16 @@ MASTER_PATH = os.path.split(MASTER_PATH)[0]
 MASTER_PATH = os.path.abspath(MASTER_PATH)
 DEFAULT_CONFIG_FILE = os.path.join(MASTER_PATH, "config_master_default.cfg")
 
-ui_plugins = [
-    #(ExamplePlugin, {'disabled': False,}),
-    #(FairIDPlugin, {'disabled': False,}),
-    #(FairRegisterPlugin, {'disabled': False,}),
-    #(FairLoginPlugin, {'disabled': False,}),
-]
+USER = os.environ.get("SUDO_USER", "root")
+USER_UID = pwd.getpwnam(USER).pw_gid
+USER_GID = pwd.getpwnam(USER).pw_uid
+USER_HOME = os.environ.get("HOME", "/root")
 
-CONFIG_FILE = os.path.expanduser('~/.coresu.cfg')
+ui_plugins = {
+    #ExamplePlugin: {'disabled': False,},
+}
+
+CONFIG_FILE = "/etc/lcrs.config"
 
 config = ConfigParser.SafeConfigParser()
 config.readfp(open(DEFAULT_CONFIG_FILE))
@@ -47,9 +49,6 @@ if not config.has_section('network'):
 
 if not config.has_section('tftp'):
     config.add_section('tftp')
-
-if not config.has_section('plugins'):
-    config.add_section('plugins')
 
 def load_plugins():
     import plugins
@@ -64,8 +63,29 @@ def load_plugins():
                 and cls.__name__ != plugins.BasePlugin.__name__ #@UndefinedVariable
                 and issubclass(cls, plugins.BasePlugin)):
                 logger.debug('found in {f}: {c}'.format(f=module.__name__,c=cls))
-                ui_plugins.append((cls, {'disabled': False}))
-    
+                ui_plugins[cls] = {'disabled': True}
+
+load_plugins()
+
+for plugin_class, __ in ui_plugins.items():
+    for k,v in plugin_class.config.items():
+        ui_plugins[plugin_class][k] = v[1]
+    if not config.has_section(plugin_class.plugin_id):
+        config.add_section(plugin_class.plugin_id)
+        for k,v in plugin_class.config.items():
+            config.set(plugin_class.plugin_id, k, str(v[1]))
+    else:
+        for k,v in config.items(plugin_class.plugin_id):
+            if not k in ui_plugins[plugin_class].keys():
+                continue
+            if isinstance(ui_plugins[plugin_class][k], bool):
+                ui_plugins[plugin_class][k] = (v=="True")
+            else:
+                ui_plugins[plugin_class][k] = v
+
+def get_active_ui_plugins():
+    return filter(lambda x: not x[1]['disabled'], ui_plugins.items())
+
 # Set config variables
 dhcpServerAddress   = config.get('network', 'server-ip')
 dhcpInterface       = config.get('network', 'server-iface')
@@ -74,7 +94,14 @@ dhcpIpRange         = range(
   config.getint('network', 'dhcp-range-lower'),
   config.getint('network', 'dhcp-range-upper')+1
 )
-tftpRoot            = config.get('tftp', 'tftp-root-dir')
+
+
+# TFTP
+try:
+    tftpRoot = config.get('tftp', 'tftp-root-dir')
+except ConfigParser.NoOptionError:
+    tftpRoot = os.path.join(MASTER_PATH, 'pxe-root')
+    
 tftpTftpy          = bool(config.getint('tftp', 'use_tftpy'))
 
 if not dhcpIpRange:
@@ -91,6 +118,10 @@ def write_config():
     config.set('tftp', 'tftp-root-dir', tftpRoot)
     config.set('tftp', 'use_tftpy', str(int(tftpTftpy)))
     
+    for plugin_class, plugin_config in ui_plugins.items():
+        for k,v in plugin_config.items():
+            config.set(plugin_class.plugin_id, k, str(v))
+
     f = open(CONFIG_FILE, 'wb')
     config.write(f)
 

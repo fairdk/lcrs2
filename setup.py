@@ -2,6 +2,8 @@ import os
 from setuptools import setup, find_packages
 from distutils.command.install import install
 
+VERSION="2.2"
+
 class lcrs_install(install):
 
     def run(self):
@@ -22,7 +24,7 @@ def read(fname):
 
 setup(
     name = "lcrs",
-    version = "2.1",
+    version = VERSION,
     packages = find_packages(),
     scripts = ['bin/lcrs'],
 
@@ -33,15 +35,17 @@ setup(
     zip_safe = False,
     package_data = {
         # If any package contains *.txt or *.rst files, include them:
-        'lcrs.master': ['pxe-root/*'],
-        'lcrs.master': ['pxe-root/*/*'],
-        'lcrs.master': ['pxe-root/*/*/*'],
-        'lcrs.master': ['pxe-root/*/*/*/*'],
+        'lcrs.master': ['pxe-root/pxelinux.0', 
+                        'pxe-root/lcrs/*.*', 
+                        'pxe-root/pxelinux.cfg/*', 
+                        'pxe-root/ubuntu-installer/i386/boot-screens/*.*', 
+                        'pxe-root/ubuntu-installer/i386/pxelinux.cfg/*', 
+                        'pxe-root/ubuntu-installer/i386/pxelinux.0',
+                        '*html',
+                        '*cfg'],
         'lcrs.master.ui': ['glade/*'],
-        'lcrs.master': ['*html', '*cfg'],
         'lcrs.master.plugins.fair': ['*html', 'glade/*'],
     },
-    exclude_package_data = {'': ['buildroot']},
     # metadata for upload to PyPI
     author = "Benjamin Bach",
     author_email = "benjamin@fairdanmark.dk",

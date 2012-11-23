@@ -16,8 +16,9 @@
 # along with LCRS.  If not, see <http://www.gnu.org/licenses/>.
 
 import gtk, gobject
+import os
 
-from lcrs.master import computer
+from lcrs.master import computer, config_master
 
 COLUMN_LENGTH = 2
 (COLUMN_NAME, COLUMN_VALUE) = range(COLUMN_LENGTH)
@@ -36,7 +37,10 @@ class ComputerPanel():
         self.grouppage = grouppage
         
         glade = gtk.Builder()
-        glade.add_objects_from_file('ui/glade/mainwindow.glade', ['computerPanel'])
+        glade.add_objects_from_file(
+            os.path.join(config_master.MASTER_PATH, 'ui/glade/mainwindow.glade'),
+            ['computerPanel']
+        )
         self.glade = glade
         self.glade.connect_signals(self)
 

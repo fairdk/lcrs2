@@ -35,7 +35,7 @@ logger = logging.getLogger('lcrs')
 import socket
 import threading
 
-from lcrs.master.ui.mainwindow import BaseMainWindow
+from lcrs.master.ui.mainwindow import MainWindow
 from lcrs.master import config_master
 
 from group import Group
@@ -146,7 +146,7 @@ class GtkMaster():
         dialog.show()
 
     def start_main_window(self):
-        self.appWindow = BaseMainWindow(master_instance=self)
+        self.appWindow = MainWindow(master_instance=self)
         self.groups = []
         
         self.addGroup("Default group")
@@ -201,8 +201,6 @@ if __name__ == '__main__':
     
     logger.addHandler(ch)
     logger.addHandler(fh)
-    
-    config_master.load_plugins()
     
     app = GtkMaster()
     gtk.main()

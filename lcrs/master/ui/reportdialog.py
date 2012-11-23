@@ -29,7 +29,6 @@ class ReportDialog:
         self.glade.add_from_file(
             os.path.join(config_master.MASTER_PATH, 'ui/glade/mainwindow.glade')
         )
-    
         
         self.window = self.glade.get_object ('dialogReport')
         self.window.connect("delete-event", self.on_delete_event)
@@ -40,6 +39,10 @@ class ReportDialog:
         self.get_widget("saveThis").set_label("Save \"%s\"" % self.group.getName())
         self.get_widget("entryName").set_text("lcrs_report_%s" % (datetime.now().strftime("%Y-%m-%d")))
         self.get_widget("entryName").connect("changed", self.on_change_name)
+        
+        self.get_widget("filechooserbuttonPath").set_current_folder(config_master.USER_HOME)
+        
+        self.get_widget("filechooserbuttonPath").add_shortcut_folder(config_master.USER_HOME)
         
         self.get_widget("cancel").connect("clicked", self.on_cancel)
         self.get_widget("saveThis").connect("clicked", self.on_save_this)
@@ -96,6 +99,7 @@ class ReportDialog:
         try:
             f = file(fullpath, "w")
             f.write(data)
+            os.chown(fullpath, config_master.USER_UID, config_master.USER_GID)
         except:
             self.fail("Could not write to file %s" % fullpath)
         finally:

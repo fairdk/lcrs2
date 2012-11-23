@@ -1,7 +1,5 @@
 #
-# LCRS Copyright (C) 2009-2011
-# - Rene Jensen
-# - Michael Wojciechowski
+# LCRS Copyright (C) 2009-2012
 # - Benjamin Bach
 #
 # LCRS is free software: you can redistribute it and/or modify
@@ -21,4 +19,23 @@ class CallbackFailed(Exception):
     pass
 
 class BasePlugin():
-    pass
+    
+    plugin_id = "unique_id"
+    name = "My Plugin"
+    description = "This is a plugin"
+    config = {}
+    
+    def __init__(self, mainwindow_instance, config_master):
+        # an instance of the main window
+        self.mainwindow_instance = mainwindow_instance
+        # an instance of config_master
+        self.config_master = config_master
+    
+    def get_config(self, key):
+        return self.config_master.ui_plugins[self.__class__][key]
+
+    def activate(self):
+        pass
+    
+    def deactivate(self):
+        pass

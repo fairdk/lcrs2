@@ -15,8 +15,12 @@
 # You should have received a copy of the GNU General Public License
 # along with LCRS.  If not, see <http://www.gnu.org/licenses/>.
 
+import os
 from datetime import datetime
-REPORT_TEMPLATE_HTML = "report_template.html"
+
+from lcrs.master import config_master
+
+REPORT_TEMPLATE_HTML = os.path.join(config_master.MASTER_PATH, "report_template.html")
 
 def make_report(groups, fmt, template=None):
     
