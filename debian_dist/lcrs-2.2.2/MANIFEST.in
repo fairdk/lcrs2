@@ -1,0 +1,5 @@
+recursive-exclude debian_dist *
+recursive-exclude build *
+recursive-exclude buildroot *
+recursive-exclude lcrs.egg-info *
+include-recursive data/*

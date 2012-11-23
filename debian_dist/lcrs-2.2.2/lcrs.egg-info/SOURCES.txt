@@ -44,7 +44,6 @@ lcrs/master/plugins/__init__.py
 lcrs/master/plugins/example.py
 lcrs/master/plugins/fair/__init__.py
 lcrs/master/plugins/fair/computersubmit.html
-lcrs/master/plugins/fair/settings.py
 lcrs/master/plugins/fair/glade/login.glade
 lcrs/master/plugins/fair/glade/webwindow.glade
 lcrs/master/pxe-root/pxelinux.0
