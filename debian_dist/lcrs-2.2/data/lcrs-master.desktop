@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=LCRS
+Comment=Large-scale Computer Reuse Suite
+Exec=lcrs
+Icon=lcrs-lcrs
+Terminal=false
+Type=Application
+StartupNotify=true
+Categories=Network

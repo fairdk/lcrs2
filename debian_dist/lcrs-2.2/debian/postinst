@@ -1,0 +1,11 @@
+#!/bin/bash
+
+set -e
+
+echo "Installing LCRS application menu and shortcuts"
+xdg-desktop-menu install /usr/share/applications/lcrs-master.desktop
+
+# Link lcrs module to dist dir
+echo "Link LCRS to python path"
+export PYTHON_DIST_DIR=`python -c "from distutils.sysconfig import get_python_lib; print get_python_lib()"`
+ln -s /usr/share/pyshared/lcrs $PYTHON_DIST_DIR
