@@ -1,5 +1,5 @@
 #
-# LCRS Copyright (C) 2009-2011
+# LCRS Copyright (C) 2009-2012
 # - Benjamin Bach
 #
 # LCRS is free software: you can redistribute it and/or modify
@@ -19,6 +19,7 @@ import gtk
 import os
 
 from lcrs.master import config_master
+import threading
 
 class GetID():
     
@@ -57,5 +58,7 @@ class GetID():
         self.glade.get_object('buttonOK').set_sensitive(False)
         self.glade.get_object('buttonCancel').set_sensitive(False)
         id_input = self.glade.get_object('entryID').get_text()
-        self.grouppage.set_id(self.computer, id_input)
+        t = threading.Thread(target=self.grouppage.set_id, args=(self.computer, id_input))
+        t.setDaemon(True)
+        t.start()
     

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# LCRS Copyright (C) 2009-2011
+# LCRS Copyright (C) 2009-2012
 # - Benjamin Bach
 #
 # LCRS is free software: you can redistribute it and/or modify
@@ -241,7 +241,7 @@ class GroupPage():
 
     def set_id(self, computer, input_id):
 
-        self.show_busy(computer)
+        gtk.idle_add(self.show_busy, computer)
         
         if not input_id:
             new_id = None
@@ -257,25 +257,29 @@ class GroupPage():
                 return
             
         if new_id == computer.id:
-            self.show_computer(computer)
+            gtk.idle_add(self.show_computer, computer)
             return
-
+        
         if new_id and new_id in [c.id for c in self.group.computers]:
-            def on_close(dialog, *args):
-                dialog.destroy()
-            dialog = gtk.MessageDialog(parent=self.mainwindow.win,
-                                       type=gtk.MESSAGE_ERROR,
-                                       buttons = gtk.BUTTONS_CLOSE,
-                                       message_format="That ID is already in use!")
-            dialog.connect("response", on_close)
-            dialog.show()
+            def show_error():
+                def on_close(dialog, *args):
+                    dialog.destroy()
+                dialog = gtk.MessageDialog(parent=self.mainwindow.win,
+                                           type=gtk.MESSAGE_ERROR,
+                                           buttons = gtk.BUTTONS_CLOSE,
+                                           message_format="That ID is already in use!")
+                dialog.connect("response", on_close)
+                dialog.show()
+                self.show_computer(computer)
+                return
+            gtk.idle_add(show_error)
+        
+        def on_received_id():
+            computer.id = new_id
+            self.update_row(computer)
             self.show_computer(computer)
-            return
-            
 
-        computer.id = new_id
-        self.update_row(computer)
-        self.show_computer(computer)
+        gtk.idle_add(on_received_id)
 
     def poll_computers(self):
         """
@@ -316,12 +320,12 @@ class GroupPage():
         
         if not self.busy_panel:
             glade = gtk.Builder()
-            glade.add_objects_from_file('ui/glade/throbber.glade', ['eventboxWait'])
+            glade.add_objects_from_file(os.path.join(config_master.MASTER_PATH, 'ui/glade/throbber.glade'), ['eventboxWait'])
             mainContainer = glade.get_object('eventboxWait')
             glade.connect_signals(self.mainwindow)
-            throbber_animation = gtk.gdk.PixbufAnimation('ui/glade/throbber.gif')        #@UndefinedVariable
-            throbber = glade.get_object('throbberImage')
-            throbber.set_from_animation(throbber_animation)
+            #throbber_animation = gtk.gdk.PixbufAnimation('ui/glade/throbber.gif')        #@UndefinedVariable
+            #throbber = glade.get_object('throbberImage')
+            #throbber.set_from_animation(throbber_animation)
             mainContainer.modify_bg(gtk.STATE_NORMAL, gtk.gdk.color_parse("white")) #@UndefinedVariable
             self.busy_panel = mainContainer
         

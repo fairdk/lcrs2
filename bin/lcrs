@@ -1,2 +1,3 @@
 #!/bin/sh
-gksudo -k "python -m lcrs.master.main"
+gksudo -k -D /usr/share/applications/lcrs-master.desktop true
+sudo bash -c "python -m lcrs.master.main $@ 2>&1 | tee -a /var/log/lcrs.error.log"
