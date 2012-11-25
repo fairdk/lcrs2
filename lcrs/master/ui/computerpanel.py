@@ -50,9 +50,6 @@ class ComputerPanel():
         self.glade.get_object('buttonComputerStart').connect('clicked', self.on_clicked_start)
         self.glade.get_object('checkbuttonWipe').connect('toggled', self.on_toggle_wipe)
         self.glade.get_object('checkbuttonScan').connect('toggled', self.on_toggle_scan)
-        self.glade.get_object('buttonComputerRegister').connect('clicked', self.on_register)
-        self.glade.get_object('buttonComputerRemove').connect('clicked', self.on_delete)
-        self.glade.get_object('buttonComputerReload').connect('clicked', self.on_reload)
         
         self.set_headline()
         
@@ -146,21 +143,11 @@ class ComputerPanel():
                 self.glade.get_object("comboboxMethod").set_sensitive(True)
             self.glade.get_object('checkbuttonAutosubmit').set_sensitive(True)
 
-    def on_register(self, *args):
-        self.grouppage.register_computer(self.computer)
-        
-    def on_delete(self, *args):
-        self.grouppage.removeComputer(self.computer)
-
-    def on_reload(self, *args):
-        self.grouppage.reload_computer(self.computer)
-
     def update(self, *args):
         """Update all widgets from computer object"""
         is_connected = self.computer.is_connected()
         ready = not self.computer.is_active()
         self.glade.get_object('buttonComputerStart').set_sensitive(is_connected and ready)
-        self.glade.get_object('buttonComputerRegister').set_sensitive(ready and bool(self.computer.id))
         self.glade.get_object('checkbuttonAutosubmit').set_sensitive(bool(self.computer.id))
         self.glade.get_object('checkbuttonAutosubmit').set_active(bool(self.computer.id))
         self.set_hardware()

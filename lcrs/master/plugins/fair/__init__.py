@@ -67,7 +67,10 @@ class FairIDPlugin(BasePlugin):
             conn.request("GET", "/materials/coresu/getid/?id=%s" % input_id)
             r1 = conn.getresponse()
             if r1.status == 200:
-                return r1.read()
+                json_return_data = json.loads(r1.read())
+                computer.id = json_return_data['id']
+                computer.wiped = json_return_data['wiped']
+                return
             else:
                 fail_msg = r1.read()
             conn.close()

@@ -39,7 +39,8 @@ class GroupPage():
     
         self.group = group
         self.mainwindow = mainwindow
-        
+        self.current_computer = None
+                
         glade = gtk.Builder()
         glade.add_objects_from_file(
             os.path.join(config_master.MASTER_PATH, 'ui/glade/mainwindow.glade'),
@@ -75,9 +76,15 @@ class GroupPage():
         
         self.treeview.connect("cursor-changed", self.on_cursor_changed)
         
+        glade.get_object('toolbuttonRegister').connect('clicked', self.on_register_computer)
+        glade.get_object('toolbuttonReset').connect('clicked', self.on_reset_computer)
+        glade.get_object('toolbuttonDelete').connect('clicked', self.on_delete_computer)
+        
         glade.get_object('toolbuttonReport').connect('clicked', self.on_save_report)
         glade.get_object('toolbuttonQuit').connect('clicked', self.on_quit)
-
+        
+        self.set_toolbar()
+        
         # Status icon column
         cell = gtk.CellRendererPixbuf()
         col = gtk.TreeViewColumn("", cell, icon_name=COLUMN_STATUS_ICON, stock_size=COLUMN_ICON_SIZE)
@@ -131,10 +138,18 @@ class GroupPage():
         #self.treeview.drag_dest_unset()
         #self.treeview.set_reorderable(True)
         
-        self.current_computer = None
-        
         t = threading.Thread(target=self.poll_computers)
         t.start()
+    
+    def set_toolbar(self,):
+        if self.current_computer:
+            self.glade.get_object('toolbuttonRegister').set_sensitive(bool(self.current_computer.id))
+            self.glade.get_object('toolbuttonReset').set_sensitive(True)
+            self.glade.get_object('toolbuttonDelete').set_sensitive(True)
+        else:
+            self.glade.get_object('toolbuttonRegister').set_sensitive(False)
+            self.glade.get_object('toolbuttonReset').set_sensitive(False)
+            self.glade.get_object('toolbuttonDelete').set_sensitive(False)
 
     def getPageWidget(self):
         return self.groupPage
@@ -247,12 +262,12 @@ class GroupPage():
             new_id = None
         else:
             new_id = input_id
-            
+            old_id = computer.id
+            computer.id = new_id
             try:
-                id_from_plugin = self.mainwindow.alert_plugins('on-set-id', computer, input_id)
-                if id_from_plugin:
-                    new_id = id_from_plugin
+                self.mainwindow.alert_plugins('on-set-id', computer, input_id)
             except CallbackFailed:
+                computer.id = old_id
                 self.show_get_id(computer)
                 return
             
@@ -275,7 +290,6 @@ class GroupPage():
             gtk.idle_add(show_error)
         
         def on_received_id():
-            computer.id = new_id
             self.update_row(computer)
             self.show_computer(computer)
 
@@ -309,15 +323,18 @@ class GroupPage():
         
         self.current_computer = computer
         
+        self.set_toolbar()
+
         self.set_content_pane(panel.get_widget())
 
     def show_get_id(self, computer):
+        self.set_toolbar()
         getid = GetID(computer, self)
         self.set_content_pane(getid.get_widget())
         getid.focus_id_entry()
 
     def show_busy(self, computer):
-        
+
         if not self.busy_panel:
             glade = gtk.Builder()
             glade.add_objects_from_file(os.path.join(config_master.MASTER_PATH, 'ui/glade/throbber.glade'), ['eventboxWait'])
@@ -329,7 +346,19 @@ class GroupPage():
             mainContainer.modify_bg(gtk.STATE_NORMAL, gtk.gdk.color_parse("white")) #@UndefinedVariable
             self.busy_panel = mainContainer
         
+        self.current_computer = None
+        self.set_toolbar()
         self.set_content_pane(self.busy_panel)
+
+    def show_nothing(self):
+        
+        self.glade.get_object('toolbuttonRegister').set_sensitive(False)
+        self.glade.get_object('toolbuttonReset').set_sensitive(False)
+        self.glade.get_object('toolbuttonDelete').set_sensitive(False)
+
+        mainContainer = gtk.Frame()
+        mainContainer.modify_bg(gtk.STATE_NORMAL, gtk.gdk.color_parse("white")) #@UndefinedVariable
+        self.set_content_pane(mainContainer)
         
     def getLabelWidget(self):
         return self.groupLabel
@@ -375,16 +404,22 @@ class GroupPage():
         computer = self.get_selected_computer()
         if computer:
             self.removeComputer(computer)
+            if computer in self.panels:
+                if self.current_computer == computer:
+                    self.show_nothing()
+                del self.panels[computer]
         
-    def reload_computer(self, computer):
+    def on_reset_computer(self, *args):
         """
         May be called from other UI elements
         """
-        computer.reset()
-        computer.update_state()
-        self.update_row(computer)
-        if computer in self.panels:
-            self.panels[computer].update()
+        computer = self.get_selected_computer()
+        if computer:
+            computer.reset()
+            computer.update_state()
+            self.update_row(computer)
+            if computer in self.panels:
+                self.panels[computer].update()
     
     def on_register_computer(self, *args):
         computer = self.get_selected_computer()

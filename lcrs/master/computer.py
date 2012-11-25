@@ -213,6 +213,9 @@ class Computer():
              callback_failed=None):
         """Spawn scan process and receive call backs"""
         self.scanned = False
+
+        logger.debug("Starting hardware scan thread...")
+        
         if self.state.is_busy:
             return
         self.state.update(State.SCANNING, "Scanning...")
