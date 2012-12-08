@@ -188,7 +188,7 @@ if __name__ == '__main__':
     config_master.DEBUG = args.debug
     
     ch = logging.StreamHandler()
-    fh = logging.FileHandler("/var/log/lcrs.log")
+    fh = logging.FileHandler(config_master.LOG_FILE)
     
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     ch.setFormatter(formatter)

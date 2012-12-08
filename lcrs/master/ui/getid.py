@@ -52,7 +52,7 @@ class GetID():
         self.glade.get_object('entryID').grab_focus()
 
     def on_cancel(self, *args):
-        self.grouppage.cancel_get_id(self.computer)
+        self.grouppage.on_cancel_get_id(self.computer)
     
     def on_ok(self, *args):
         self.glade.get_object('buttonOK').set_sensitive(False)

@@ -221,6 +221,8 @@ class Computer():
         self.wipe_hexsample_before = None # Hex-digest of some sector on HD
         self.wipe_hexsample_after  = None # Hex-digest of some sector on HD
         
+        self.shutdown_after_wiping = False
+        
         self.debug_mode_request = config_master.DEBUG
 
         self.is_registered = False # Says whether the computer has been registered in some database
@@ -363,8 +365,8 @@ class Computer():
     def __send_to_slave(self, request):
         request = json.dumps(request)
         reply = ""
-        for __ in range(3):
-            # Retry 3 times
+        for __ in range(1):
+            # Retry 1 times
             try:
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 s.settimeout (2.0)
@@ -392,6 +394,7 @@ class Computer():
             raise ConnectionException("Timeout connecting")
 
         retries = 0
+        max_retries = 2
         while True:
             try:
                 s.settimeout (5.0)
@@ -405,7 +408,7 @@ class Computer():
                 continue
             except socket.timeout:
                 retries += 1
-                if retries > 5:
+                if retries > max_retries:
                     s.close()
                     raise ConnectionException("Timeout while receiving reply")
                 self.state.update(State.NOT_CONNECTED, "Connection timeout")
@@ -515,6 +518,8 @@ class Computer():
         self.state.update(State.WIPED, info="All drives wiped!", progress=1.0)
         self.wipe_finished_on = datetime.now()
         callback_finished(self) if callback_finished else ()
+        if self.drives and self.shutdown_after_wiping:
+            self.shutdown()
     
     def __verify_after_dump(self, dump_data):
         """

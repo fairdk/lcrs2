@@ -22,6 +22,8 @@ import os
 
 from lcrs.master.ui.grouppage import GroupPage
 from lcrs.master import config_master
+from lcrs.master.ui.preferenceswindow import PreferencesWindow
+
 import logging
 logger = logging.getLogger('lcrs')
 
@@ -101,6 +103,18 @@ class MainWindow():
         """
         self.main_quit()
         return True # Do not destroy
+    
+    def on_log_menu_activate(self, *args):
+        f = open(config_master.LOG_FILE, "r")
+        textbuffer = self.getWidget('textbufferLog')
+        textbuffer.set_text(f.read())
+        
+        self.dialog = self.getWidget('dialogLog')
+        self.dialog.show_all()
+        self.dialog.connect('delete_event', self.dialog.hide_on_delete)
+    
+    def on_log_close(self, *args):
+        self.dialog.hide()
     
     def main_quit(self):
         def do_quit(dialog, response_id):
@@ -199,7 +213,6 @@ class MainWindow():
                 self.groups[group].update_computer(computer)
     
     def open_preferences(self, *args):
-        from preferenceswindow import PreferencesWindow
         _ = PreferencesWindow()
 
 

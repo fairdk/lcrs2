@@ -27,7 +27,12 @@ import os
 import simplejson as json
 import shlex
 
+import threading
+
 from lcrs.master.plugins import CallbackFailed, BasePlugin
+
+import logging
+logger = logging.getLogger("lcrs")
 
 class FairIDPlugin(BasePlugin):
     
@@ -80,16 +85,7 @@ class FairIDPlugin(BasePlugin):
             
         if fail_msg:
 
-            def on_close(dialog, *args):
-                dialog.destroy()
-
-            dialog = gtk.MessageDialog(parent=self.mainwindow_instance.win,
-                                       type=gtk.MESSAGE_ERROR,
-                                       buttons = gtk.BUTTONS_CLOSE,
-                                       message_format=fail_msg)
-            dialog.connect("response", on_close)
-            dialog.show()
-            
+            self.show_error_msg(fail_msg)
             raise CallbackFailed()
 
     def on_ready_login(self, *args):
@@ -149,39 +145,15 @@ class FairIDPlugin(BasePlugin):
                 self.mainwindow_instance.fair_username = username
                 self.mainwindow_instance.fair_password = password
                 self.win.destroy()
-                #def on_close(dialog, *args):
-                #    dialog.destroy()
-                #    self.win.destroy()
-                #dialog = gtk.MessageDialog(parent=self.win,
-                #                           type=gtk.MESSAGE_INFO,
-                #                           buttons = gtk.BUTTONS_CLOSE,
-                #                           message_format="You are now logged in!",)
-                #dialog.set_modal(True)
-                #dialog.connect("response", on_close)
-                #dialog.show()
-
             else:
-                self.glade.get_object('buttonLogin').set_sensitive(True)
                 fail_msg = r1.read()
             conn.close()
         except:
             fail_msg = "Could not connect to FAIR server"
             
-        
         if fail_msg:
-
-            def on_close(dialog, *args):
-                self.glade.get_object('buttonLogin').set_sensitive(True)
-                dialog.destroy()
-
-            dialog = gtk.MessageDialog(parent=self.win,
-                                       type=gtk.MESSAGE_ERROR,
-                                       buttons = gtk.BUTTONS_CLOSE,
-                                       message_format=fail_msg,)
-            dialog.set_modal(True)
-            dialog.connect("response", on_close)
-            dialog.show()
-            
+            self.glade.get_object('buttonLogin').set_sensitive(True)            
+            self.show_error_msg(fail_msg, parent=self.win)
     
     
     def on_auto_submit(self, computer):
@@ -213,25 +185,27 @@ class FairIDPlugin(BasePlugin):
         response = conn.getresponse()
         data = response.read()
         if response.status != 200:
-            # TODO: Handle this in the log file
-            print "ERROR IN REGISTRATION: %s" % data
+            errmsg = "autosubmit plugin failed: %s" % str(data)
+            self.show_error_msg(errmsg)
+            logger.critical(errmsg)
         conn.close()
-
 
     def on_register(self, computer):
         
-        computer.is_registered = True
-        self.mainwindow_instance.update_computer(computer)
-        self.on_auto_submit(computer)
+        def register_thread():
+            self.on_auto_submit(computer)
+            if self.get_config("use_https"):
+                url = "https://%s%s%s" % (self.get_config("fair_server"), URL_REGISTER, computer.id)
+            else:
+                url = "http://%s%s%s" % (self.get_config("fair_server"), URL_REGISTER, computer.id)
+            username = os.getenv("SUDO_USER")
+            
+            if username:
+                subprocess.Popen(shlex.split("su %s -c \"xdg-open %s\"" % (username, url)))
+            else:
+                subprocess.Popen(shlex.split("xdg-open %s" % url))
+    
+        t = threading.Thread(target=register_thread)
+        t.setDaemon(True)
+        t.start()
         
-        if self.get_config("use_https"):
-            url = "https://%s%s%s" % (self.get_config("fair_server"), URL_REGISTER, computer.id)
-        else:
-            url = "http://%s%s%s" % (self.get_config("fair_server"), URL_REGISTER, computer.id)
-        username = os.getenv("SUDO_USER")
-        
-        if username:
-            subprocess.Popen(shlex.split("su %s -c \"xdg-open %s\"" % (username, url)))
-        else:
-            subprocess.Popen(shlex.split("xdg-open %s" % url))
-

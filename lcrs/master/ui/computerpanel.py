@@ -50,6 +50,7 @@ class ComputerPanel():
         self.glade.get_object('buttonComputerStart').connect('clicked', self.on_clicked_start)
         self.glade.get_object('checkbuttonWipe').connect('toggled', self.on_toggle_wipe)
         self.glade.get_object('checkbuttonScan').connect('toggled', self.on_toggle_scan)
+        self.glade.get_object('togglebuttonShutdown').connect('toggled', self.on_shutdown_toggled)
         
         self.set_headline()
         
@@ -110,17 +111,25 @@ class ComputerPanel():
                 row[COLUMN_VALUE] = str(hw[key])
                 self.liststore.prepend(row=row)
                 
-
+    
+    def on_shutdown_toggled(self, *args, **kwargs):
+        btn = self.glade.get_object("togglebuttonShutdown")
+        on = btn.get_active()
+        self.computer.shutdown_after_wiping = on
+        if on:
+            btn.set_label("On")
+        else:
+            btn.set_label("Off")
+    
     def on_clicked_start(self, *args, **kwargs):
         self.glade.get_object('buttonComputerStart').set_sensitive(False)
         scan = self.glade.get_object('checkbuttonScan').get_active()
         wipe = self.glade.get_object('checkbuttonWipe').get_active()
-        shutdown = self.glade.get_object('checkbuttonShutdown').get_active()
         autosubmit = self.glade.get_object('checkbuttonAutosubmit').get_active()
         badblocks = self.glade.get_object('checkbuttonBadblocks').get_active()
         method = self.glade.get_object("comboboxMethod").get_active_text()
         self.grouppage.process(self.computer, scan, wipe, method, badblocks,
-                               shutdown=shutdown, autosubmit=autosubmit)
+                               autosubmit=autosubmit)
 
     def on_toggle_wipe(self, *args):
         if not self.glade.get_object('checkbuttonWipe').get_active():
@@ -150,7 +159,6 @@ class ComputerPanel():
         ready = not self.computer.is_active()
         self.glade.get_object('buttonComputerStart').set_sensitive(is_connected and ready)
         self.glade.get_object('checkbuttonAutosubmit').set_sensitive(bool(self.computer.id))
-        self.glade.get_object('checkbuttonAutosubmit').set_active(bool(self.computer.id))
         if not small_update:
             self.set_hardware()
         self.set_headline()

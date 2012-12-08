@@ -25,6 +25,7 @@ from reportdialog import ReportDialog
 from getid import GetID
 from lcrs.master.plugins import CallbackFailed
 from lcrs.master import config_master
+from lcrs.master.ui.decorators import idle_add_decorator
 
 COLUMN_LENGTH = 10
 (COLUMN_STATUS_ICON, COLUMN_ICON_SIZE, COLUMN_ID, COLUMN_ID_FONT,
@@ -139,8 +140,10 @@ class GroupPage():
         #self.treeview.set_reorderable(True)
         
         t = threading.Thread(target=self.poll_computers)
+        t.setDaemon(True)
         t.start()
     
+    @idle_add_decorator
     def set_toolbar(self,):
         if self.current_computer:
             self.glade.get_object('toolbuttonRegister').set_sensitive(bool(self.current_computer.id))
@@ -199,10 +202,10 @@ class GroupPage():
     def on_get_id(self, data, computer, *args):
         self.show_get_id(computer)
 
-    def cancel_get_id(self, computer):
+    def on_cancel_get_id(self, computer):
         self.show_computer(computer)
 
-    def process(self, computer, scan, wipe, method, badblocks=False, shutdown=False, autosubmit=False):
+    def process(self, computer, scan, wipe, method, badblocks=False, autosubmit=False):
         """
         Process scan and wipe requests. Receive callbacks from Computer object's threads.
         REMEMBER THREAD SAFETY!!!!
@@ -220,8 +223,6 @@ class GroupPage():
                     self.mainwindow.alert_plugins('on-wipe-finished', computer)
                     if autosubmit:
                         self.mainwindow.alert_plugins('on-auto-submit', computer)
-                    if shutdown:
-                        computer.shutdown()
 
             def computer_failed(computer):
                 gobject.idle_add(self.__update_computer, computer)
@@ -320,11 +321,14 @@ class GroupPage():
         if self.current_computer != computer:
             self.current_computer = computer
             self.set_content_pane(panel.get_widget())
+        
+        self.set_toolbar()
 
     def show_get_id(self, computer):
         self.set_toolbar()
         getid = GetID(computer, self)
         self.set_content_pane(getid.get_widget())
+        self.current_computer = None
         getid.focus_id_entry()
 
     def show_busy(self, computer):
@@ -399,22 +403,32 @@ class GroupPage():
         computer = self.get_selected_computer()
         if computer:
             self.removeComputer(computer)
-            if computer in self.panels:
-                if self.current_computer == computer:
-                    self.show_nothing()
-                del self.panels[computer]
         
     def on_reset_computer(self, *args):
         """
         May be called from other UI elements
         """
         computer = self.get_selected_computer()
-        if computer:
+        
+        def on_dialog_reset(dialog, response_id):
+            if dialog:
+                dialog.destroy()
+            if not response_id == gtk.RESPONSE_YES: return
             computer.reset()
             computer.update_state()
             self.__update_computer(computer)
             if computer in self.panels:
                 self.panels[computer].update()
+        
+        if computer:
+            dialog = gtk.MessageDialog(parent=self.mainwindow.win,
+                                       type=gtk.MESSAGE_QUESTION,
+                                       buttons = gtk.BUTTONS_YES_NO,
+                                       message_format="Are you sure you comeplete want to reset this computer? This will attempt to stop all currently executing processes (ie. wiping) on the remote side and delete all data gathered about the computer.\n\nUse this function in case you are experiencing lock-ups.")
+            dialog.connect("response", on_dialog_reset)
+            dialog.connect("close", on_dialog_reset, gtk.RESPONSE_NO)
+            dialog.show()
+
     
     def on_register_computer(self, *args):
         computer = self.get_selected_computer()
@@ -422,6 +436,8 @@ class GroupPage():
             self.register_computer(computer)
 
     def register_computer(self, computer):
+        
+        @idle_add_decorator
         def do_register(dialog, response_id, computer, *args):
             if dialog:
                 dialog.destroy()
@@ -429,10 +445,11 @@ class GroupPage():
                 computer.is_registered = False
                 return
             try:
-                self.mainwindow.alert_plugins('on-register-computer', computer)
                 computer.is_registered = True
+                self.mainwindow.alert_plugins('on-register-computer', computer)
             except CallbackFailed:
                 pass
+            self.update_computer(computer)
 
         if not computer.wiped:
             dialog = gtk.MessageDialog(parent=self.mainwindow.win,
@@ -457,6 +474,16 @@ class GroupPage():
             del self.iters[computer]
             self.mainwindow.update_overall_status()
             self.setTitle()
+            if it:
+                # Mark another computer as selected:
+                path = self.treeview.get_path_at_pos(0,0)
+                if path:
+                    self.treeview.set_cursor(path[0])
+            if computer in self.panels:
+                if self.current_computer == computer:
+                    self.show_nothing()
+                del self.panels[computer]
+
         if it:
             dialog = gtk.MessageDialog(parent=self.mainwindow.win,
                                        type=gtk.MESSAGE_QUESTION,
@@ -465,10 +492,6 @@ class GroupPage():
             dialog.connect("response", do_delete)
             dialog.connect("close", do_delete, gtk.RESPONSE_NO)
             dialog.show()
-        # Mark another computer as selected:
-        path = self.treeview.get_path_at_pos(0,0)
-        if path:
-            self.treeview.set_cursor(path[0])
     
     def update_computer(self, computer):
         gobject.idle_add(self.__update_computer, computer)

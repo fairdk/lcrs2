@@ -15,6 +15,8 @@
 # You should have received a copy of the GNU General Public License
 # along with LCRS.  If not, see <http://www.gnu.org/licenses/>.
 
+import gtk
+
 class CallbackFailed(Exception):
     pass
 
@@ -39,3 +41,18 @@ class BasePlugin():
     
     def deactivate(self):
         pass
+
+    def show_error_msg(self, msg, parent=None):
+        """Utility function to display a simple error message"""
+        dialog = gtk.MessageDialog(parent=parent if parent else self.mainwindow_instance.win,
+                                   type=gtk.MESSAGE_ERROR,
+                                   buttons = gtk.BUTTONS_CLOSE,
+                                   message_format=msg)
+        dialog.set_modal(True)
+        dialog.set_keep_above(True)
+        def on_close(dialog, *args):
+            dialog.destroy()
+        
+        dialog.connect("response", on_close)
+        dialog.show()
+    

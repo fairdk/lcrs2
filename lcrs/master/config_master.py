@@ -20,6 +20,8 @@ import os, sys, pwd
 import logging
 logger = logging.getLogger('lcrs')
 
+LOG_FILE = "/var/log/lcrs.log"
+
 DEBUG = False
 
 TFTP_COMMAND = "in.tftpd -a %(ip)s -s -l -v -v -v -L %(path)s"
