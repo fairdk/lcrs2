@@ -207,6 +207,7 @@ class GroupPage():
 
     def process(self, computer, scan, wipe, method, badblocks=False, autosubmit=False):
         """
+        Called from main thread.
         Process scan and wipe requests. Receive callbacks from Computer object's threads.
         REMEMBER THREAD SAFETY!!!!
         """
@@ -252,7 +253,8 @@ class GroupPage():
         
 
     def set_id(self, computer, input_id):
-
+        """Called from main thread"""
+        
         self.show_busy(computer)
         
         def get_id_thread():

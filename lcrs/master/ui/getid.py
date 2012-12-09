@@ -58,7 +58,5 @@ class GetID():
         self.glade.get_object('buttonOK').set_sensitive(False)
         self.glade.get_object('buttonCancel').set_sensitive(False)
         id_input = self.glade.get_object('entryID').get_text()
-        t = threading.Thread(target=self.grouppage.set_id, args=(self.computer, id_input))
-        t.setDaemon(True)
-        t.start()
+        self.grouppage.set_id(self.computer, id_input)
     
