@@ -2,7 +2,7 @@ import os
 from setuptools import setup, find_packages
 from distutils.command.install import install
 
-VERSION="2.2.8.4"
+VERSION="2.2.8.5"
 
 class lcrs_install(install):
 

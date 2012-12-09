@@ -7,5 +7,5 @@ then
 fi
 
 cp postbuild.sh buildroot-current/
-cp lcrs.config buildroot-current
+cp lcrs.config buildroot-current/.config
 cp linux.config buildroot-current

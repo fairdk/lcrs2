@@ -16,6 +16,7 @@
 # along with LCRS.  If not, see <http://www.gnu.org/licenses/>.
 
 import gtk
+from lcrs.master.ui.decorators import idle_add_decorator
 
 class CallbackFailed(Exception):
     pass
@@ -41,7 +42,8 @@ class BasePlugin():
     
     def deactivate(self):
         pass
-
+    
+    @idle_add_decorator
     def show_error_msg(self, msg, parent=None):
         """Utility function to display a simple error message"""
         dialog = gtk.MessageDialog(parent=parent if parent else self.mainwindow_instance.win,

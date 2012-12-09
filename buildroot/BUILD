@@ -52,3 +52,9 @@ cd output/build/linux-xx/
 make clean
 cd ../../../
 make
+
+
+NOTES:
+
+Building with static device table: TTY is "tty1"
+Building with devtmpfs use "ttyS0"

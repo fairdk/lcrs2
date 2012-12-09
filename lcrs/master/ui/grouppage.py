@@ -253,45 +253,47 @@ class GroupPage():
 
     def set_id(self, computer, input_id):
 
-        gtk.idle_add(self.show_busy, computer)
+        self.show_busy(computer)
         
-        if not input_id:
-            new_id = None
-        else:
-            new_id = input_id
-            old_id = computer.id
-            computer.id = new_id
-            try:
-                self.mainwindow.alert_plugins('on-set-id', computer, input_id)
-            except CallbackFailed:
-                computer.id = old_id
-                self.show_get_id(computer)
-                return
+        def get_id_thread():
+            if not input_id:
+                new_id = None
+            else:
+                new_id = input_id
+                old_id = computer.id
+                computer.id = new_id if new_id != "" else None
+                if not new_id:
+                    gtk.idle_add(self.show_computer, computer)
+                    return
+                try:
+                    self.mainwindow.alert_plugins('on-set-id', computer, input_id)
+                except CallbackFailed:
+                    computer.id = old_id
+                    gobject.idle_add(self.show_get_id, computer)
+                    return
             
-        if new_id == computer.id:
-            gtk.idle_add(self.show_computer, computer)
-            return
+            gobject.idle_add(self.__update_computer, computer)
+            gobject.idle_add(self.show_computer, computer)
+            
+            if computer.id in [c.id for c in filter(lambda c: c != computer, self.group.computers)]:
+                @idle_add_decorator
+                def show_error():
+                    def on_close(dialog, *args):
+                        dialog.destroy()
+                    dialog = gtk.MessageDialog(parent=self.mainwindow.win,
+                                               type=gtk.MESSAGE_ERROR,
+                                               buttons = gtk.BUTTONS_CLOSE,
+                                               message_format="That ID is already in use!")
+                    dialog.connect("response", on_close)
+                    dialog.show()
+                    self.show_computer(computer)
+                    return
+                show_error()
         
-        if new_id and new_id in [c.id for c in self.group.computers]:
-            def show_error():
-                def on_close(dialog, *args):
-                    dialog.destroy()
-                dialog = gtk.MessageDialog(parent=self.mainwindow.win,
-                                           type=gtk.MESSAGE_ERROR,
-                                           buttons = gtk.BUTTONS_CLOSE,
-                                           message_format="That ID is already in use!")
-                dialog.connect("response", on_close)
-                dialog.show()
-                self.show_computer(computer)
-                return
-            gtk.idle_add(show_error)
+        t = threading.Thread(target=get_id_thread)
+        t.setDaemon(True)
+        t.start()
         
-        def on_received_id():
-            self.__update_computer(computer)
-            self.show_computer(computer)
-
-        gtk.idle_add(on_received_id)
-
     def poll_computers(self):
         """
         Update the state of each computer.

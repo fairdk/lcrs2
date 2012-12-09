@@ -172,6 +172,8 @@ SCAN_ITERATION_1 = {
     "cat /proc/acpi/battery/BAT0/info": "analyze_battery_info",
 }
 
+#dd if=/dev/dvd of=/dev/null count=1 2>/dev/null; if [ $? -eq 0 ]; then echo "disk found"; else echo "no disk"; fi
+
 # Shell commands for second iteration. Each command has a tuple (analyze function, command parser)
 # for analyzing output and parsing the command (for possible inclusion of data from the first iteration)
 SCAN_ITERATION_2 = {

@@ -74,8 +74,11 @@ class FairIDPlugin(BasePlugin):
             r1 = conn.getresponse()
             if r1.status == 200:
                 json_return_data = json.loads(r1.read())
-                computer.id = json_return_data['id']
-                computer.wiped = json_return_data['wiped']
+                computer_id = json_return_data.get('id', None)
+                if not computer_id:
+                    raise CallbackFailed()
+                computer.id = computer_id
+                computer.wiped = json_return_data.get('wiped', False)
                 return
             else:
                 fail_msg = r1.read()
