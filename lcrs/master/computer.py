@@ -229,6 +229,9 @@ class Computer():
 
         self.is_registered = False # Says whether the computer has been registered in some database
 
+        self.__slave__uuid = None
+        self.__slave_uuid_conflict = False
+
     def scan(self, callback_progress=None, callback_finished=None, 
              callback_failed=None):
         """Spawn scan process and receive call backs"""
@@ -446,6 +449,11 @@ class Computer():
         state, data = self.slave_state()
         if not state == protocol.DISCONNECTED:
             self.state.update_progress(data.get('progress', None))
+            slave__uuid = data.get('uuid', None)
+            if not self.__slave__uuid is None and self.__slave__uuid != slave__uuid:
+                self.__slave_uuid_conflict = True
+                logger.critical("A conflict has been discovered on ip: %s" % self.ipAddress)
+            self.__slave__uuid = slave__uuid
     
     def wipe(self, method, badblocks=False,
              callback_finished=None, callback_failed=None,
@@ -703,6 +711,9 @@ class Computer():
     
     def progress(self):
         return self.state.progress
+    
+    def slave_uuid_conflict(self):
+        return self.__slave_uuid_conflict
     
     def analyze_cpu_data(self ,stdout, stderr, hw_info):
 

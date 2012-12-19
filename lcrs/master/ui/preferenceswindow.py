@@ -18,6 +18,8 @@ import gtk, gobject
 import os
 
 import logging
+import subprocess
+import re
 logger = logging.getLogger('lcrs')
 
 from lcrs.master import config_master
@@ -35,6 +37,8 @@ class PreferencesWindow:
         
         self.selected_plugin_class = None
         
+        self.set_interface_options()
+        
         self.set_values()
         self.set_combobox_plugins()
         
@@ -42,7 +46,18 @@ class PreferencesWindow:
         self.get_widget("checkbuttonEnablePlugin").connect('toggled', self.on_checkbutton_plugin_enable_change)
         
         self.window.show()
-
+    
+    def set_interface_options(self):
+        
+        self.iface_lstore = gtk.ListStore(gobject.TYPE_STRING)
+        ifconfig_out = subprocess.check_output("ifconfig")
+        pattern_ifconfig =re.compile(r"^(\w+)\s*", re.MULTILINE)
+        matches = pattern_ifconfig.findall(ifconfig_out)
+        for match in matches:
+            self.iface_lstore.append((match,))
+        self.get_widget('server-iface').set_model(self.iface_lstore)
+        #self.get_widget('server-iface').set_text_column(0)        
+    
     def get_widget(self, key):
         """Use this object as a dictionary of widgets"""
         return self.uiApp.get_object(key)
@@ -137,11 +152,9 @@ class PreferencesWindow:
         self.close_window()
 
     def set_values(self):
-        lstore = gtk.ListStore(gobject.TYPE_STRING)
-        lstore.append((config_master.dhcpInterface,))
-        self.get_widget('server-iface').set_model(lstore)
-        self.get_widget('server-iface').set_text_column(0)
+        self.iface_lstore.prepend((config_master.dhcpInterface,))
         self.get_widget('server-iface').set_active(0)
+        
         self.get_widget('server-ip').set_text(config_master.dhcpServerAddress)
         self.get_widget('dhcp-prefix').set_text(config_master.dhcpPrefix)
         self.get_widget('dhcp-range-lower').set_value(min(config_master.dhcpIpRange))

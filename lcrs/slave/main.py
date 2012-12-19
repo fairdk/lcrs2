@@ -27,6 +27,7 @@ import logging
 import re
 import os
 import sys
+from uuid import getnode as get_mac
 
 # create logger
 logger = logging.getLogger('lcrs_slave')
@@ -69,7 +70,9 @@ class Slave():
         self.__wipe_output = None
         
         self.__active = True
-    
+        
+        self.uuid = str(get_mac())
+        
     def stop(self):
         self.__active = False
     
@@ -346,7 +349,8 @@ class Slave():
         return {'progress': self.__progress,
                 'badblocks_done': self.__badblocks_done,
                 'wipe_done': self.__wipe_done,
-                'fail_message': self.__fail_message}
+                'fail_message': self.__fail_message,
+                'uuid': self.uuid}
     
     def hardware(self, data):
         logger.info("Received HARDWARE command.")

@@ -139,6 +139,8 @@ class GroupPage():
         #self.treeview.drag_dest_unset()
         #self.treeview.set_reorderable(True)
         
+        self.__ip_errors_displayed = []
+        
         t = threading.Thread(target=self.poll_computers)
         t.setDaemon(True)
         t.start()
@@ -280,14 +282,7 @@ class GroupPage():
             if computer.id in [c.id for c in filter(lambda c: c != computer, self.group.computers)]:
                 @idle_add_decorator
                 def show_error():
-                    def on_close(dialog, *args):
-                        dialog.destroy()
-                    dialog = gtk.MessageDialog(parent=self.mainwindow.win,
-                                               type=gtk.MESSAGE_ERROR,
-                                               buttons = gtk.BUTTONS_CLOSE,
-                                               message_format="That ID is already in use!")
-                    dialog.connect("response", on_close)
-                    dialog.show()
+                    self.show_error("That ID is already in use!")
                     self.show_computer(computer)
                     return
                 show_error()
@@ -295,7 +290,18 @@ class GroupPage():
         t = threading.Thread(target=get_id_thread)
         t.setDaemon(True)
         t.start()
-        
+    
+    @idle_add_decorator
+    def show_error(self, errormsg):
+        def on_close(dialog, *args):
+            dialog.destroy()
+        dialog = gtk.MessageDialog(parent=self.mainwindow.win,
+                                   type=gtk.MESSAGE_ERROR,
+                                   buttons = gtk.BUTTONS_CLOSE,
+                                   message_format=errormsg)
+        dialog.connect("response", on_close)
+        dialog.show()
+    
     def poll_computers(self):
         """
         Update the state of each computer.
@@ -309,6 +315,17 @@ class GroupPage():
                 if conn_before != computer.is_connected():
                     if self.current_computer == computer or not self.current_computer:
                         gobject.idle_add(self.show_computer, computer)
+                
+                if computer.slave_uuid_conflict() and not computer in self.__ip_errors_displayed:
+                    self.__ip_errors_displayed.append(computer)
+                    self.show_error("There is a conflict on computer ID %s, IP: %s. "
+                                    "This means that you have had LCRS switched off " 
+                                    "and back on, but some of the computers remained turned on "
+                                    "and kept their IP address from the previous instance. "
+                                    "You need to fix this by switching off those computers! "
+                                    "And to be most safe, you should probably switch off all "
+                                    "computers and restart LCRS." % (str(computer.id),
+                                                                     str(computer.ipAddress)))
                 gobject.idle_add(self.__update_computer, computer, True)
             time.sleep(2)
     
@@ -380,7 +397,7 @@ class GroupPage():
         if computer in self.iters.keys(): return
         
         row = [None for _ in range(COLUMN_LENGTH)]
-        row[COLUMN_STATUS_ICON] = connection_icon(computer.is_connected())
+        row[COLUMN_STATUS_ICON] = get_computer_icon(computer)
         row[COLUMN_ICON_SIZE] = 4.0
         row[COLUMN_ID] = str(computer.id) if computer.id else "No ID"
         row[COLUMN_ID_FONT] = "normal 18"
@@ -505,8 +522,7 @@ class GroupPage():
         
         it = self.iters.get(computer, False)
         if it and self.liststore.iter_is_valid(it):
-            is_connected = computer.is_connected()
-            self.liststore.set_value(it, COLUMN_STATUS_ICON, connection_icon(is_connected))
+            self.liststore.set_value(it, COLUMN_STATUS_ICON, get_computer_icon(computer))
             self.liststore.set_value(it, COLUMN_ID, str(computer.id) if computer.id else "No ID")
             progress = computer.progress()
             self.liststore.set_value(it, COLUMN_PROGRESS, progress * 100 if type(progress) in (float, int) else 0)
@@ -526,8 +542,10 @@ class GroupPage():
     def on_quit(self, *args):
         self.mainwindow.main_quit()
     
-def connection_icon(is_connected):
-    if is_connected:
+def get_computer_icon(computer):
+    if computer.slave_uuid_conflict():
+        return "error"
+    elif computer.is_connected():
         return "network-idle"
     else:
         return "network-offline"
