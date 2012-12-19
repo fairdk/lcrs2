@@ -88,7 +88,7 @@ class FairIDPlugin(BasePlugin):
             
         if fail_msg:
 
-            self.show_error_msg(fail_msg)
+            self.show_error_msg(fail_msg, None)
             raise CallbackFailed()
 
     def on_ready_login(self, *args):
@@ -156,7 +156,7 @@ class FairIDPlugin(BasePlugin):
             
         if fail_msg:
             self.glade.get_object('buttonLogin').set_sensitive(True)            
-            self.show_error_msg(fail_msg, parent=self.win)
+            self.show_error_msg(fail_msg, self.win)
     
     
     def on_auto_submit(self, computer):
@@ -189,7 +189,7 @@ class FairIDPlugin(BasePlugin):
         data = response.read()
         if response.status != 200:
             errmsg = "autosubmit plugin failed: %s" % str(data)
-            self.show_error_msg(errmsg)
+            self.show_error_msg(errmsg, None)
             logger.critical(errmsg)
         conn.close()
 

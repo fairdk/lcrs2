@@ -44,9 +44,10 @@ class BasePlugin():
         pass
     
     @idle_add_decorator
-    def show_error_msg(self, msg, parent=None):
+    def show_error_msg(self, msg, parent):
+        if not parent: parent = self.mainwindow_instance.win
         """Utility function to display a simple error message"""
-        dialog = gtk.MessageDialog(parent=parent if parent else self.mainwindow_instance.win,
+        dialog = gtk.MessageDialog(parent=parent,
                                    type=gtk.MESSAGE_ERROR,
                                    buttons = gtk.BUTTONS_CLOSE,
                                    message_format=msg)
