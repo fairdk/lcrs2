@@ -250,8 +250,25 @@ class GroupPage():
                           callback_finished=finished,
                           callback_failed=failed)
 
-        if scan:
+        @idle_add_decorator
+        def do_process_dialog(dialog, response_id):
+            if dialog:
+                dialog.destroy()
+            if response_id == gtk.RESPONSE_NO:
+                return
             do_scan()
+        
+        if scan:
+            if computer.wiped:
+                dialog = gtk.MessageDialog(parent=self.mainwindow.win,
+                                           type=gtk.MESSAGE_QUESTION,
+                                           buttons = gtk.BUTTONS_YES_NO,
+                                           message_format="This computer is already marked as wiped. Are you sure you want to process it again?")
+                dialog.connect("response", do_process_dialog)
+                dialog.connect("close", do_process_dialog, gtk.RESPONSE_NO)
+                dialog.show()
+            else:
+                do_scan()
         
 
     def set_id(self, computer, input_id):
@@ -262,6 +279,7 @@ class GroupPage():
         def get_id_thread():
             if not input_id:
                 new_id = None
+                return
             else:
                 new_id = input_id
                 old_id = computer.id
@@ -282,7 +300,8 @@ class GroupPage():
             if computer.id in [c.id for c in filter(lambda c: c != computer, self.group.computers)]:
                 @idle_add_decorator
                 def show_error():
-                    self.show_error("That ID is already in use!")
+                    computer.id = old_id
+                    self.show_error("The ID %s is already in use!" % new_id)
                     self.show_computer(computer)
                     return
                 show_error()
@@ -458,32 +477,39 @@ class GroupPage():
 
     def register_computer(self, computer):
         
+        def register_thread():
+            try:
+                gtk.idle_add(self.show_busy, computer)
+                self.mainwindow.alert_plugins('on-register-computer', computer)
+                computer.is_registered = True
+            except CallbackFailed:
+                pass
+            gtk.idle_add(self.update_computer, computer)
+            gtk.idle_add(self.show_computer, computer)
+        
         @idle_add_decorator
-        def do_register(dialog, response_id, computer, *args):
+        def register_dialog_response(dialog, response_id, computer, *args):
             if dialog:
                 dialog.destroy()
             if response_id == gtk.RESPONSE_NO:
                 computer.is_registered = False
                 return
-            try:
-                computer.is_registered = True
-                self.mainwindow.alert_plugins('on-register-computer', computer)
-            except CallbackFailed:
-                pass
-            self.update_computer(computer)
 
+            t = threading.Thread(target=register_thread)
+            t.setDaemon(True)
+            t.start()
+        
         if not computer.wiped:
             dialog = gtk.MessageDialog(parent=self.mainwindow.win,
                                        type=gtk.MESSAGE_QUESTION,
                                        buttons = gtk.BUTTONS_YES_NO,
                                        message_format="This computer is not wiped. Are you sure you want to register it?")
-            dialog.connect("response", do_register, computer)
-            dialog.connect("close", do_register, gtk.RESPONSE_NO, computer)
+            dialog.connect("response", register_dialog_response, computer)
+            dialog.connect("close", register_dialog_response, gtk.RESPONSE_NO, computer)
             dialog.show()
         else:
-            do_register(None, None, computer)
-    
-    
+            register_dialog_response(None, None, computer)
+        
     def removeComputer(self, computer):
         it = self.iters.get(computer, False)
         def do_delete(dialog, response_id):

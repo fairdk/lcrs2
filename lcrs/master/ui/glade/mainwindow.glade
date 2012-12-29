@@ -723,7 +723,7 @@ might be in /root.</property>
                                     <property name="visible">True</property>
                                     <property name="can_focus">False</property>
                                     <property name="xalign">1</property>
-                                    <property name="label" translatable="yes">Shutdown after wiping:</property>
+                                    <property name="label" translatable="yes">Shutdown on successful finish:</property>
                                   </object>
                                   <packing>
                                     <property name="expand">True</property>
@@ -963,7 +963,7 @@ might be in /root.</property>
                                                 </child>
                                                 <child>
                                                   <object class="GtkCheckButton" id="checkbuttonAutosubmit">
-                                                    <property name="label" translatable="yes">Auto-submit results when finished wiping</property>
+                                                    <property name="label" translatable="yes">Send data on succesful finish</property>
                                                     <property name="visible">True</property>
                                                     <property name="sensitive">False</property>
                                                     <property name="can_focus">True</property>

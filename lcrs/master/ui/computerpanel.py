@@ -147,10 +147,10 @@ class ComputerPanel():
         else:
             self.glade.get_object('buttonComputerStart').set_sensitive(True)
             self.glade.get_object('checkbuttonWipe').set_sensitive(True)
-            self.glade.get_object('checkbuttonBadblocks').set_sensitive(False)
+            self.glade.get_object('checkbuttonBadblocks').set_sensitive(True)
             if self.glade.get_object('checkbuttonWipe').get_active():
                 self.glade.get_object("comboboxMethod").set_sensitive(True)
-            self.glade.get_object('checkbuttonAutosubmit').set_sensitive(True)
+            self.glade.get_object('checkbuttonAutosubmit').set_sensitive(bool(self.computer.id))
 
     def update(self, *args, **kwargs):
         """Update all widgets from computer object"""

@@ -522,7 +522,7 @@ class Computer():
             if not dump_check:
                 self.state.update(State.WIPE_FAILED, "Dump after did not pass (drive %d of %d)" % (wipe_cnt, len(self.drives)))
                 callback_failed(self) if callback_failed else ()
-                return                
+                return
         
         self.wiped = True
         self.state.update(State.WIPED, info="All drives wiped!", progress=1.0)

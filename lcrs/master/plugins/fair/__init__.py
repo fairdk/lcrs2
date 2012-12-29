@@ -15,6 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with LCRS.  If not, see <http://www.gnu.org/licenses/>.
 import gobject
+import socket
 
 CALLBACK_FAILED = "callback failed!"
 URL_REGISTER = "/materials/barcode/"
@@ -61,15 +62,19 @@ class FairIDPlugin(BasePlugin):
     
     def deactivate(self):
         pass
-
+    
+    def get_httplib_conn(self):
+        if self.get_config("use_https"):
+            conn = httplib.HTTPSConnection(self.get_config("fair_server"), timeout=10)
+        else:
+            conn = httplib.HTTPConnection(self.get_config("fair_server"), timeout=10)
+        return conn
+    
     def on_set_id(self, computer, input_id):
         
         fail_msg = None
         try:
-            if self.get_config("use_https"):
-                conn = httplib.HTTPSConnection(self.get_config("fair_server"))
-            else:
-                conn = httplib.HTTPConnection(self.get_config("fair_server"))
+            conn = self.get_httplib_conn()
             conn.request("GET", "/materials/coresu/getid/?id=%s" % input_id)
             r1 = conn.getresponse()
             if r1.status == 200:
@@ -83,7 +88,7 @@ class FairIDPlugin(BasePlugin):
             else:
                 fail_msg = r1.read()
             conn.close()
-        except:
+        except (httplib.HTTPException, socket.error, socket.timeout):
             fail_msg = "Could not connect to FAIR server: %s" % self.get_config("fair_server")
             
         if fail_msg:
@@ -138,10 +143,7 @@ class FairIDPlugin(BasePlugin):
             params = urllib.urlencode({'u': username, 'p': password, 'c': checksum})
             headers = {"Content-type": "application/x-www-form-urlencoded",
                        "Accept": "text/plain"}
-            if self.get_config("use_https"):
-                conn = httplib.HTTPSConnection(self.get_config("fair_server"))
-            else:
-                conn = httplib.HTTPConnection(self.get_config("fair_server"))
+            conn = self.get_httplib_conn()
             conn.request("POST", "/materials/coresu/login/", params, headers)
             r1 = conn.getresponse()
             if r1.status == 200:
@@ -170,7 +172,7 @@ class FairIDPlugin(BasePlugin):
             json_data = json.dumps(computer.hw_info)
         else:
             json_data = ""
-
+        
         params = urllib.urlencode({'username': str(self.mainwindow_instance.fair_username),
                                    'password': str(self.mainwindow_instance.fair_password),
                                    'wiped': "1" if computer.wiped else "",
@@ -180,23 +182,34 @@ class FairIDPlugin(BasePlugin):
                                    })
         headers = {"Content-type": "application/x-www-form-urlencoded",
                    "Accept": "text/plain"}
-        if self.get_config("use_https"):
-            conn = httplib.HTTPSConnection(self.get_config("fair_server"))
-        else:
-            conn = httplib.HTTPConnection(self.get_config("fair_server"))
-        conn.request("POST", URL_REGISTER_WEBSERVICE, params, headers)
-        response = conn.getresponse()
-        data = response.read()
-        if response.status != 200:
-            errmsg = "autosubmit plugin failed: %s" % str(data)
+        
+        try:
+            conn = self.get_httplib_conn()
+            conn.request("POST", URL_REGISTER_WEBSERVICE, params, headers)
+            response = conn.getresponse()
+            data = response.read()
+            if response.status != 200:
+                errmsg = "Error sending data for ID %s, error was:\n %s" % (str(computer.id), str(data))
+                self.show_error_msg(errmsg, None)
+                logger.critical(errmsg)
+                conn.close()
+                return False
+            conn.close()
+        
+        except (httplib.HTTPException, socket.error, socket.timeout):
+            errmsg = "Error sending data to %s for ID %s, could not connect." % (self.get_config("fair_server"), str(computer.id))
             self.show_error_msg(errmsg, None)
             logger.critical(errmsg)
-        conn.close()
+            return False
+
+        return True
 
     def on_register(self, computer):
         
+        if not self.on_auto_submit(computer):
+            return
+
         def register_thread():
-            self.on_auto_submit(computer)
             if self.get_config("use_https"):
                 url = "https://%s%s%s" % (self.get_config("fair_server"), URL_REGISTER, computer.id)
             else:
@@ -207,7 +220,7 @@ class FairIDPlugin(BasePlugin):
                 subprocess.Popen(shlex.split("su %s -c \"xdg-open %s\"" % (username, url)))
             else:
                 subprocess.Popen(shlex.split("xdg-open %s" % url))
-    
+        
         t = threading.Thread(target=register_thread)
         t.setDaemon(True)
         t.start()
