@@ -10,4 +10,5 @@ else:
 if sys.stdout.isatty():
     os.system("gksudo -k -D /usr/share/applications/lcrs-master.desktop true && sudo bash -c \"python -m lcrs.master.main %s 2>&1 | tee -a /var/log/lcrs.error.log\"" % args)
 else:
-    os.system("gksudo -k -D /usr/share/applications/lcrs-master.desktop \"python -m lcrs.master.main --debug\"")
+    os.system('zenity --error --text="You must run this program from a terminal. Open a terminal and type lcrs"')
+#    os.system("gksudo -k -D /usr/share/applications/lcrs-master.desktop \"python -m lcrs.master.main --debug\"")
