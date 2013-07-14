@@ -165,8 +165,8 @@ SCAN_ITERATION_1 = {
     "dmidecode -s baseboard-serial-number": "analyze_dmidecode_bios_sn",
     "dmidecode -t system": "analyze_dmidecode_system",
     "dmidecode --string chassis-type": "analyze_dmidecode_chassis_type",
-    "cat /proc/meminfo": "analyze_meminfo_data",
     "dmidecode -t memory": "analyze_dmidecode_memory",
+    "cat /proc/meminfo": "analyze_meminfo_data",
     "cat /proc/cpuinfo": "analyze_cpu_data",
     "cat /proc/sys/dev/cdrom/info": "analyze_cdrom_info",
     "cat /proc/acpi/battery/BAT0/info": "analyze_battery_info",
@@ -844,12 +844,27 @@ class Computer():
         """
         Find RAM capacity
         """
-        if hw_info.get("Memory", None):
-            return hw_info
         re_memory = re.compile(r"^MemTotal:\s+(\d+)", re.I | re.M)
         m = re_memory.search(stdout)
         memory = int(m.group(1)) / 1024 if m else 0
-        hw_info["Memory"] = memory
+        # Since memory is reserved for the kernel, and we can expect
+        # around 153864 kB to be reserved for LCRS (empirically tested)
+        if memory > 0:
+            memory = memory + (12324/1024)
+            standard_memory_sizes = [x*256 for x in range(1,30)]
+            # Pick the memory size closest to one of these...
+            memory = min(standard_memory_sizes, key=lambda x: abs(x-memory))
+            if hw_info.get("Memory", None):
+                hw_info["meminfo_memory"] = memory
+                # Check for error in previous results, for instance dmidecode is
+                # known to fail in 1/1000 times by not detecting some DIMM blocks.
+                if memory // hw_info["Memory"] > 1.5:
+                    logger.debug("memory controversy: {} demidecode: {}".format(
+                        hw_info["Memory"], hw_info["Memory"]))
+                else:
+                    # Just use dmidecode
+                    memory = hw_info["Memory"]
+            hw_info["Memory"] = memory
         return hw_info
     
     def analyze_cdrom_info(self, stdout, stderr, hw_info):
