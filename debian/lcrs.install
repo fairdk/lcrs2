@@ -1,0 +1,3 @@
+#!/usr/bin/dh-exec
+debian/shortcuts/lcrs.desktop => usr/share/applications/lcrs-master.desktop
+lcrs/master/ui/glade/icon.png => usr/share/icons/hicolor/128x128/lcrs.png

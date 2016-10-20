@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Encoding=UTF-8
+Name=LCRS
+Comment=Large-scale Computer Reuse Suite
+Exec=/usr/bin/lcrs
+Icon=/usr/share/icons/hicolor/128x128/lcrs.png
+Terminal=false
+Categories=GNOME;GTK;Education;System;Settings;
+

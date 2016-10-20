@@ -1,0 +1,20 @@
+Source: lcrs
+Maintainer: Benjamin Bach <benjamin@overtag.dk>
+Section: python
+Priority: optional
+Build-Depends: python-setuptools (>= 0.6b3), python-all (>= 2.6.6-3), debhelper (>= 9), dh-exec
+Standards-Version: 3.9.7
+
+
+
+Package: lcrs
+Architecture: all
+Depends: ${misc:Depends}, ${python:Depends}
+Description: Large Scale Computer Reuse Suite v2 (GTK2)
+ Reuse computers in a workshop - test, wipe and report
+ back data to your warehouse. Made for both small and
+ large operations.
+Homepage: https://lcrs.fairdanmark.dk/
+
+
+
