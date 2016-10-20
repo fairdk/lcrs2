@@ -1,9 +1,18 @@
+=======================================
 Large-scale Computer Reuse Suite (LCRS)
 =======================================
 
+**THIS PROJECT HAS A NEWER VERSION**
+
+Go here:
+
+https://github.com/fairdk/lcrs
+
+---------------------------------------------------------
+
 ## For the benefit of people and the planet, let us start re-using, repairing and refurbishing computers instead of throwing them away
 
-![LCRS main window](https://raw.githubusercontent.com/benjaoming/lcrs/master/lcrs_screenshot.png)
+![LCRS main window](https://raw.githubusercontent.com/fairdk/lcrs2/master/lcrs_screenshot.png)
 
 
 README
@@ -20,6 +29,14 @@ http://lcrs.fairdanmark.dk
 Installing
 ==========
 
+Click this link to install from PPA on Ubuntu/Debian:
+  
+![LCRS PPA on Launchpad](https://launchpad.net/~benjaoming/+archive/ubuntu/lcrs)
+
+Installing as raw Python package:
+
+    git clone https://github.com/fairdk/lcrs2.git
+    cd lcrs2
     sudo python setup.py install
 
 
