@@ -1,5 +1,9 @@
-recursive-exclude debian_dist *
-recursive-exclude build *
-recursive-exclude buildroot *
-recursive-exclude lcrs.egg-info *
+include COPYING
+include README.md
+include requirements.txt
+
 include-recursive data/*
+include-recursive lcrs/*
+recursive-exclude lcrs/* *pyc
+prune lcrs/__pycache___
+prune lcrs/*/__pycache___
