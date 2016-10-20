@@ -5,6 +5,8 @@ __pycache__/
 
 .venv
 
+debian-build/
+
 # C extensions
 *.so
 
