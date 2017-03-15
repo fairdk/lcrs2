@@ -1,4 +1,3 @@
-=======================================
 Large-scale Computer Reuse Suite (LCRS)
 =======================================
 
@@ -31,7 +30,7 @@ Installing
 
 Click this link to install from PPA on Ubuntu/Debian:
   
-![LCRS PPA on Launchpad](https://launchpad.net/~benjaoming/+archive/ubuntu/lcrs)
+[LCRS PPA on Launchpad](https://launchpad.net/~benjaoming/+archive/ubuntu/lcrs)
 
 Installing as raw Python package:
 
