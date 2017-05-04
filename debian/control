@@ -9,7 +9,7 @@ Standards-Version: 3.9.7
 
 Package: lcrs
 Architecture: all
-Depends: ${misc:Depends}, ${python:Depends}
+Depends: ${misc:Depends}, ${python:Depends}, python-gtk2, gksu, tftpd-hpa, python-simplejson
 Description: Large Scale Computer Reuse Suite v2 (GTK2)
  Reuse computers in a workshop - test, wipe and report
  back data to your warehouse. Made for both small and
