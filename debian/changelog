@@ -1,3 +1,15 @@
+lcrs (2.2.11-0ubuntu1) trusty; urgency=medium
+
+  * New upstream release
+
+ -- Benjamin Bach <benjamin@overtag.dk>  Sat, 21 Oct 2017 21:35:02 +0200
+
+lcrs (2.2.10-0ubuntu2) trusty; urgency=medium
+
+  * Add missing dependencies
+
+ -- Benjamin Bach <benjamin@overtag.dk>  Thu, 04 May 2017 22:31:48 +0200
+
 lcrs (2.2.10-0ubuntu1) trusty; urgency=medium
 
   * Bulding the old version
