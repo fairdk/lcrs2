@@ -715,7 +715,7 @@ class Computer():
     def slave_uuid_conflict(self):
         return self.__slave_uuid_conflict
     
-    def analyze_cpu_data(self ,stdout, stderr, hw_info):
+    def analyze_cpu_data(self, stdout, stderr, hw_info):
 
         # /proc/cpuinfo
         re_processor_name = re.compile(r"^model name\s+\:\s*(.+)\s*", re.MULTILINE)
@@ -733,7 +733,8 @@ class Computer():
         
         hw_info["CPU"] = {'name': cpu_name,
                           'mhz': cpu_mhz,
-                          'cores': cpu_cores,}
+                          'cores': cpu_cores,
+                          'info': stdout}
         
         return hw_info
 
