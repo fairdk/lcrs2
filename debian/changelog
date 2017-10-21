@@ -1,3 +1,9 @@
+lcrs (2.2.12-0ubuntu1) trusty; urgency=medium
+
+  * New upstream release
+
+ -- Benjamin Bach <benjamin@overtag.dk>  Sat, 21 Oct 2017 23:11:31 +0200
+
 lcrs (2.2.11-0ubuntu1) trusty; urgency=medium
 
   * New upstream release
