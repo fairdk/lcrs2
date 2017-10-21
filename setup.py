@@ -2,7 +2,7 @@ import os
 from setuptools import setup, find_packages
 from distutils.command.install import install
 
-VERSION="2.2.11"
+VERSION="2.2.12"
 
 class lcrs_install(install):
 
@@ -26,7 +26,7 @@ setup(
     name = "lcrs",
     version = VERSION,
     packages = find_packages(),
-    scripts = ['bin/lcrs'],
+    scripts = ['bin/lcrs', 'bin/lcrs_run.sh'],
 
     # Project uses reStructuredText, so ensure that the docutils get
     # installed or upgraded on the target machine
