@@ -2,7 +2,7 @@ import os
 from setuptools import setup, find_packages
 from distutils.command.install import install
 
-VERSION="2.2.10"
+VERSION="2.2.11"
 
 class lcrs_install(install):
 
